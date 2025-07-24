@@ -7,7 +7,7 @@ mod routes;
 
 use routes::Routes;
 
-const STYLE_CSS: Asset = asset!("/assets/style.css");
+const STYLE_CSS: Asset = asset!("assets/style.css");
 
 fn main() {
     dioxus::launch(App);

@@ -1,0 +1,28 @@
+name: Build
+
+on:
+    workflow_call:
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    dioxus_build:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup-dioxus
+            - name: Build for web
+              run: dx build --release --platform web
+            - name: Build for linux
+              run: dx build --release --platform linux
+            - name: Build for android
+              run: dx build --release --platform android
+
+    node_build:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup-node
+            - name: Build stylesheet
+              run: npm run build
