@@ -1,0 +1,19 @@
+name: Code analysis
+
+on:
+    workflow_call:
+        
+jobs:
+    check_rust:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup-rust
+            - name: Check with cargo-fmt
+              run: cargo fmt --all --check
+            - name: Check with dx check
+              run: |
+                  cargo install --force dioxus-cli
+                  dx check
+            - name: Check with cargo-clippy
+              run: cargo clippy -- -D warnings
