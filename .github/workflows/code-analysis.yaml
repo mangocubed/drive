@@ -16,7 +16,6 @@ jobs:
               run: cargo clippy -- -D warnings
             - name: Check with dioxus-cli
               run: |
-                  cargo install --force dioxus-cli
                   dx check
                   dx fmt --check
             - name: Check with cargo-fmt
