@@ -7,7 +7,7 @@ env:
     CARGO_TERM_COLOR: always
 
 jobs:
-    dioxus_build:
+    build_application:
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
@@ -19,10 +19,9 @@ jobs:
             - name: Build for android
               run: dx build --release --platform android
 
-    node_build:
+    build_stylesheet:
         runs-on: ubuntu-24.04
         steps:
             - uses: actions/checkout@v4
             - uses: ./.github/actions/setup-node
-            - name: Build stylesheet
-              run: npm run build
+            - run: npm run build
