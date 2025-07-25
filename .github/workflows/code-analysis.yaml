@@ -20,3 +20,11 @@ jobs:
                   dx fmt --check
             - name: Check with cargo-fmt
               run: cargo fmt --all --check
+
+    check_sql:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: quarylabs/install-sqruff-cli-action@main
+            - name: Check with sqruff
+              run: sqruff lint migrations/*.sql
