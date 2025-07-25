@@ -5,6 +5,9 @@ mod layout;
 mod pages;
 mod routes;
 
+#[cfg(feature = "server")]
+mod server;
+
 use routes::Routes;
 
 const STYLE_CSS: Asset = asset!("assets/style.css");

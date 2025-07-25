@@ -5,21 +5,32 @@ on:
 
 env:
     CARGO_TERM_COLOR: always
+    DATABASE_URL: postgres://lime3:lime3@127.0.0.1:5432/lime3_test
 
 jobs:
     check_rust:
         runs-on: ubuntu-24.04
+        services:
+            postgres:
+                image: postgres:17-alpine
+                env:
+                    POSTGRES_USER: lime3
+                    POSTGRES_PASSWORD: lime3
+                    POSTGRES_DB: lime3_test
+                ports:
+                    - 5432:5432
+                options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
         steps:
             - uses: actions/checkout@v4
             - uses: ./.github/actions/setup-dioxus
             - name: Check with cargo-clippy
               run: cargo clippy -- -D warnings
+            - name: Check with cargo-fmt
+              run: cargo fmt --all --check
             - name: Check with dioxus-cli
               run: |
                   dx check
                   dx fmt --check
-            - name: Check with cargo-fmt
-              run: cargo fmt --all --check
 
     check_sql:
         runs-on: ubuntu-24.04
