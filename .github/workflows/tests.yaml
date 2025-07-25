@@ -1,0 +1,28 @@
+name: Tests
+
+on:
+    workflow_call:
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    unit_tests:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: taiki-e/install-action@nextest
+            - uses: ./.github/actions/setup-dioxus
+            - name: Run all unit tests
+              run: cargo nextest run --all-features
+
+    end2end_tests:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup-dioxus
+            - uses: ./.github/actions/setup-node
+            - name: Setup Playwright
+              run: npx playwright install chromium firefox --with-deps
+            - name: Run all end2end tests
+              run: npm run end2end

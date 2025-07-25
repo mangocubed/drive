@@ -1,0 +1,22 @@
+name: Code analysis
+
+on:
+    workflow_call:
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    check_rust:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup-dioxus
+            - name: Check with cargo-clippy
+              run: cargo clippy -- -D warnings
+            - name: Check with dioxus-cli
+              run: |
+                  dx check
+                  dx fmt --check
+            - name: Check with cargo-fmt
+              run: cargo fmt --all --check
