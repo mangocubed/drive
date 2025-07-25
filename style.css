@@ -8,3 +8,55 @@
 @utility h1 {
     @apply text-2xl font-bold mb-6;
 }
+
+@layer components {
+    /* Loading overlay */
+    @keyframes loading-pulse {
+        0% {
+            background-color: #333;
+            box-shadow: 0 0 0 0px #333;
+        }
+        100% {
+            background-color: #3333;
+            box-shadow: 0 0 0 64px #3333;
+        }
+    }
+
+    .loading-overlay {
+        @apply flex items-center justify-center fixed inset-[0] z-1000 bg-black;
+
+        transition:
+            visibility 0s 0.3s,
+            background-color 0.3s;
+    }
+
+    .loading-overlay .loading-pulse {
+        @apply bottom-[14px] left-[14px] m-auto h-[100px] w-[100px] rounded-full animate-[loading-pulse_1.5s_infinite];
+    }
+
+    .loading-overlay figure {
+        @apply block h-[128px] w-[128px] relative;
+    }
+
+    .loading-overlay img {
+        @apply block h-auto w-full;
+    }
+
+    .loading-overlay img,
+    .loading-overlay .loading-pulse {
+        @apply absolute;
+
+        transition:
+            visibility 0s 0.3s,
+            opacity 0.3s;
+    }
+
+    .loading-overlay.is-done {
+        @apply bg-[#0000] invisible;
+    }
+
+    .loading-overlay.is-done img,
+    .loading-overlay.is-done .loading-pulse {
+        @apply invisible opacity-0;
+    }
+}

@@ -10,6 +10,7 @@ mod server;
 
 use routes::Routes;
 
+const FAVICON_ICO: Asset = asset!("assets/favicon.ico");
 const STYLE_CSS: Asset = asset!("assets/style.css");
 
 fn main() {
@@ -19,6 +20,7 @@ fn main() {
 #[component]
 fn App() -> Element {
     rsx! {
+        document::Link { rel: "icon", href: FAVICON_ICO }
         document::Link { rel: "stylesheet", href: STYLE_CSS }
 
         Router::<Routes> {}
