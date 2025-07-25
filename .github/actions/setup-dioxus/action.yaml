@@ -7,16 +7,11 @@ runs:
         - uses: actions/cache@v4
           with:
               path: |
-                  /var/cache/apt/archives
-              key: ${{ runner.os }}-apt }}
-        - uses: actions/cache@v4
-          with:
-              path: |
                   ~/.cargo/
                   ~/.dioxus/
                   ~/.rustup/
                   target/
-              key: ${{ runner.os }}-dioxus }}
+              key: ${{ runner.os }}-cargo-{{ hashFiles('**/Cargo.lock') }}
         - uses: cargo-bins/cargo-binstall@main
         - name: Install system dependencies
           shell: bash
