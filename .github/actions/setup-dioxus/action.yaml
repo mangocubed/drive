@@ -1,5 +1,5 @@
 name: Setup Dioxus
-description: Setup Dioxus environment
+description: Setup Dioxus environment with dependencies and database configuration
 
 runs:
     using: composite
@@ -11,15 +11,21 @@ runs:
                   ~/.dioxus/
                   ~/.rustup/
                   target/
-              key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+              key: ${{ runner.os }}-cargo-{{ hashFiles('**/Cargo.lock') }}
         - uses: cargo-bins/cargo-binstall@main
-        - shell: bash
+        - name: Install system dependencies
+          shell: bash
           run: |
               sudo apt update
               sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-        - shell: bash
-          run: cargo binstall dioxus-cli@0.7.0-alpha.3
-        - shell: bash
+        - name: Install Dioxus CLI & SQLx CLI
+          shell: bash
+          run: cargo binstall -y dioxus-cli@0.7.0-alpha.3 sqlx-cli@0.8.6
+        - name: Add additional RustUp targets
+          shell: bash
           run: rustup target add wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+        - name: Run database migrations
+          shell: bash
+          run: sqlx database setup
         - shell: bash
           run: touch assets/style.css

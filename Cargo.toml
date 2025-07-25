@@ -6,6 +6,10 @@ edition = "2024"
 
 [dependencies]
 dioxus = { version = "0.7.0-alpha.3", features = ["router", "fullstack"] }
+figment = { version = "0.10.19", features = ["env"], optional = true }
+serde = { version = "1.0.219", features = ["derive"], optional = true }
+sqlx = { version = "0.8.6", features = ["postgres"], optional = true }
+tokio = { version = "1.46.1", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
@@ -16,3 +20,4 @@ default = ["web"]
 web = ["dioxus/web"]
 desktop = ["dioxus/desktop"]
 mobile = ["dioxus/mobile"]
+server = ["dep:figment", "dep:serde", "dep:sqlx", "dep:tokio", "dioxus/server"]
