@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("has a heading text", async ({ page }) => {
+test("should have a heading text", async ({ page }) => {
     await page.goto("/");
 
     await expect(page.locator(".loading-overlay")).toHaveClass(/is-done/);

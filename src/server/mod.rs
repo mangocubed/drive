@@ -2,7 +2,9 @@ use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::OnceCell;
 
+mod commands;
 mod config;
+mod models;
 
 use config::DATABASE_CONFIG;
 

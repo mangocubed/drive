@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+@utility form {
+    @apply max-w-[640px] ml-auto mr-auto mt-4 mb-4 w-full;
+}
+
 @utility main {
     @apply max-w-[1300px] mx-auto p-4;
 }
