@@ -22,18 +22,58 @@ pub fn FormField(children: Element, error: ReadSignal<Option<String>>, id: Strin
 }
 
 #[component]
+pub fn PasswordField(
+    id: String,
+    label: String,
+    name: String,
+) -> Element {
+    let mut input_type = use_signal(|| "password");
+    
+    rsx! {
+        FormField {
+            error, id, label,
+            div {
+                class: "input flex items-center gap-2 pr-0",
+                class: if error().is_some() { "input-error" },
+                input {
+                    class: "grow",
+                    id,
+                    name,
+                    r#type: input_type,
+                }
+                
+                button {
+                    class: "btn btn-ghost btn-sm",
+                    onclick: |event| {
+                        event.prevent_default();
+                        
+                        input_type = if value == "password" {
+                            "text"
+                        } else {
+                            "password"
+                        };
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
 pub fn TextField(
-    error: ReadSignal<Option<String>>,
     id: String,
     #[props(default = "text".to_owned())] input_type: String,
     label: String,
+    name: String,
 ) -> Element {
     rsx! {
-        FormField { error, id, label,
+        FormField {
+            error, id, label,
             input {
                 class: "input",
                 class: if error().is_some() { "input-error" },
                 id,
+                name,
                 r#type: input_type,
             }
         }
