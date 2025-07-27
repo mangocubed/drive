@@ -26,7 +26,7 @@ pub fn Layout() -> Element {
                 div { class: "dropdown",
                     button { class: "btn btn-ghost lg:hidden", Bars3Outline {} }
 
-                    ul { class: "menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow",
+                    ul { class: "menu menu-sm dropdown-content bg-base-200 rounded-box z-1 mt-3 w-52 p-2 shadow",
                         NavbarItems {}
                     }
                 }

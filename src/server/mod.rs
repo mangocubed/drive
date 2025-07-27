@@ -6,6 +6,8 @@ mod commands;
 mod config;
 mod models;
 
+pub mod constants;
+
 use config::DATABASE_CONFIG;
 
 static DB_POOL_CELL: OnceCell<PgPool> = OnceCell::const_new();
