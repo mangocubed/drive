@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
 
 pub struct User<'a> {
@@ -18,7 +18,7 @@ pub struct User<'a> {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-impl User {
+impl User<'_> {
     pub fn is_disabled(&self) -> bool {
         self.disabled_at.is_some()
     }

@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
+use validator::ValidationErrors;
 
-use crate::forms::Form;
 use crate::components::PageTitle;
+use crate::forms::{ActionResponse, Form, PasswordField, TextField};
 
 #[component]
 pub fn RegisterPage() -> Element {
@@ -10,7 +11,25 @@ pub fn RegisterPage() -> Element {
 
         h1 { class: "h1", "Register" }
 
-        Form { }
+        Form {
+            on_submit: move |event| {
+                ActionResponse::Error(
+                    "Failed to create user".to_owned(),
+                    ValidationErrors::new(),
+                )
+            },
+
+            TextField { id: "username", label: "Username", name: "username" }
+
+            TextField {
+                id: "email",
+                input_type: "email",
+                label: "Email",
+                name: "email",
+            }
+
+            PasswordField { id: "password", label: "Password", name: "password" }
+        }
     }
 }
 
@@ -27,3 +46,4 @@ mod tests {
 
         pretty_assertions::assert_str_eq!(element, expected);
     }
+}

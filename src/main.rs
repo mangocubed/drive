@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 
 mod components;
 mod forms;
+mod icons;
 mod layout;
 mod pages;
 mod routes;
