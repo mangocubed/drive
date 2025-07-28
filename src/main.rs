@@ -7,6 +7,7 @@ mod inputs;
 mod layout;
 mod pages;
 mod routes;
+mod server_functions;
 
 #[cfg(feature = "server")]
 mod server;

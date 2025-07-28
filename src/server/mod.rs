@@ -2,10 +2,10 @@ use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::OnceCell;
 
-mod commands;
 mod config;
 mod models;
 
+pub mod commands;
 pub mod constants;
 
 use config::DATABASE_CONFIG;

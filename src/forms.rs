@@ -1,9 +1,12 @@
+use std::future::Future;
+
 use dioxus::prelude::*;
+use serde::{Deserialize, Serialize};
 use validator::ValidationErrors;
 
 use crate::components::Modal;
 
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, Deserialize, PartialEq, Serialize)]
 pub enum ActionResponse {
     #[default]
     Nothing,
@@ -38,8 +41,14 @@ fn use_action_response() -> Signal<ActionResponse> {
     use_context()
 }
 
+#[derive(Clone, PartialEq, Props)]
+struct FormProps<T: Future<Output = Result<ActionResponse, ServerFnError>> + 'static> {
+    children: Element,
+    on_submit: Callback<Event<FormData>, T>,
+}
+
 #[component]
-pub fn Form(children: Element, on_submit: Callback<Event<FormData>, ActionResponse>) -> Element {
+pub fn Form<T: Future<Output = Result<ActionResponse, ServerFnError>> + 'static>(props: FormProps<T>) -> Element {
     let mut action_response = use_signal(|| ActionResponse::default());
 
     use_context_provider(|| action_response);
@@ -53,7 +62,12 @@ pub fn Form(children: Element, on_submit: Callback<Event<FormData>, ActionRespon
                 event.prevent_default();
 
                 *action_response.write() = ActionResponse::Pending;
-                *action_response.write() = on_submit.call(event);
+
+                async move {
+                    if let Ok(response) = props.on_submit.call(event).await {
+                        *action_response.write() = response;
+                    }
+                }
             },
             match action_response() {
                 ActionResponse::Success(message) => rsx! {
@@ -67,7 +81,7 @@ pub fn Form(children: Element, on_submit: Callback<Event<FormData>, ActionRespon
                 _ => rsx! {},
             }
 
-            {children}
+            {props.children}
 
             SubmitButton {}
         }

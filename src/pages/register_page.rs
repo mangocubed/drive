@@ -1,8 +1,9 @@
 use dioxus::prelude::*;
-use validator::ValidationErrors;
 
 use crate::components::PageTitle;
-use crate::forms::{ActionResponse, Form, PasswordField, TextField};
+use crate::forms::{Form, PasswordField, TextField};
+use crate::inputs::RegisterInput;
+use crate::server_functions::attempt_to_register;
 
 #[component]
 pub fn RegisterPage() -> Element {
@@ -11,13 +12,7 @@ pub fn RegisterPage() -> Element {
 
         h1 { class: "h1", "Register" }
 
-        Form {
-            on_submit: move |event| {
-                ActionResponse::Error(
-                    "Failed to create user".to_owned(),
-                    ValidationErrors::new(),
-                )
-            },
+        Form { on_submit: async move |event: Event<FormData>| { attempt_to_register(event.data.values).await },
 
             TextField { id: "username", label: "Username", name: "username" }
 
