@@ -204,7 +204,7 @@ pub fn SelectField(id: String, label: String, name: String, children: Element) -
 
 #[component]
 fn SuccessModal(children: Element, on_close: Callback<()>) -> Element {
-    let is_open = use_signal(|| true);
+    let mut is_open = use_signal(|| true);
 
     rsx! {
         Modal { is_open, is_closable: false,
@@ -212,10 +212,10 @@ fn SuccessModal(children: Element, on_close: Callback<()>) -> Element {
             div { class: "modal-action",
                 button {
                     class: "btn btn-primary",
-                    onclick: |event| {
+                    onclick: move |event| {
                         event.prevent_default();
                         on_close.call(());
-                        is_open.write() = false;
+                        *is_open.write() = false;
                     },
                     "Ok"
                 }

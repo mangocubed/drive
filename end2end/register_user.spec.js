@@ -8,6 +8,7 @@ test("should register a new user", async ({ page }) => {
 
     page.getByRole("link", { name: "Register" }).click();
 
+    await expect(page).toHaveURL("/register");
     await expect(page.locator("h1", { hasText: "Register" })).toBeVisible();
 
     await page.getByLabel("Username").fill(faker.internet.username().substring(0, 16));
@@ -20,9 +21,10 @@ test("should register a new user", async ({ page }) => {
     await page.getByRole("button", { name: "Submit" }).click();
 
     await expect(page.getByText("User created successfully")).toBeVisible();
-    
+
     await page.getByRole("button", { name: "Ok" }).click();
-    
+
+    await expect(page).toHaveURL("/");
     await expect(page.locator("h1", { hasText: "Home" })).toBeVisible();
 });
 

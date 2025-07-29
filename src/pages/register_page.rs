@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 
 use crate::components::PageTitle;
 use crate::forms::{Form, PasswordField, SelectField, TextField, use_form_provider};
+use crate::routes::Routes;
 use crate::server_functions::attempt_to_register;
 
 #[component]
@@ -14,7 +15,11 @@ pub fn RegisterPage() -> Element {
 
         h1 { class: "h1", "Register" }
 
-        Form { on_success: |()| { navigator.push(Router::home()); }, provider: form_provider,
+        Form {
+            on_success: move |()| {
+                navigator.push(Routes::home());
+            },
+            provider: form_provider,
             TextField {
                 id: "username",
                 label: "Username",
