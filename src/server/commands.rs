@@ -1,9 +1,8 @@
-use std::borrow::Cow;
-
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHasher};
-use validator::{Validate, ValidationError, ValidationErrors};
+use chrono::NaiveDate;
+use validator::{Validate, ValidationErrors};
 
 use crate::inputs::RegisterInput;
 
@@ -29,23 +28,17 @@ fn encrypt_password(value: &str) -> String {
     argon2.hash_password(value.as_bytes(), &salt).unwrap().to_string()
 }
 
-pub async fn insert_user<'a>(input: RegisterInput) -> Result<User<'a>, ValidationErrors> {
+pub async fn insert_user<'a>(input: &RegisterInput) -> Result<User<'a>, ValidationErrors> {
     input.validate()?;
 
     let mut validation_errors = ValidationErrors::new();
 
     if username_exists(&input.username).await {
-        validation_errors.add(
-            "username",
-            ValidationError::new(ERROR_ALREADY_EXISTS).with_message(Cow::Borrowed("Already exists")),
-        );
+        validation_errors.add("username", ERROR_ALREADY_EXISTS.clone());
     }
 
     if email_exists(&input.email).await {
-        validation_errors.add(
-            "email",
-            ValidationError::new(ERROR_ALREADY_EXISTS).with_message(Cow::Borrowed("Already exists")),
-        );
+        validation_errors.add("email", ERROR_ALREADY_EXISTS.clone());
     }
 
     if !validation_errors.is_empty() {
@@ -54,6 +47,7 @@ pub async fn insert_user<'a>(input: RegisterInput) -> Result<User<'a>, Validatio
 
     let db_pool = db_pool().await;
     let display_name = input.full_name.split(' ').next().unwrap();
+    let birthdate = NaiveDate::parse_from_str(&input.birthdate, "%Y-%m-%d").unwrap();
 
     sqlx::query_as!(
         User,
@@ -64,14 +58,14 @@ pub async fn insert_user<'a>(input: RegisterInput) -> Result<User<'a>, Validatio
             display_name,
             full_name,
             birthdate,
-            language_code
+            country_alpha2
         ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
         input.username,                    // $1
         input.email.to_lowercase(),        // $2
         encrypt_password(&input.password), // $3
         display_name,                      // $4
         input.full_name,                   // $5
-        input.birthdate,                   // $6
+        birthdate,                         // $6
         input.country_alpha2,              // $7
     )
     .fetch_one(db_pool)
@@ -93,23 +87,90 @@ async fn username_exists(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::*;
+
     use super::*;
 
     #[tokio::test]
-    async fn should_find_an_email() {}
+    async fn should_find_existing_email() {
+        let user = insert_test_user().await;
+
+        assert!(email_exists(&user.email).await);
+    }
 
     #[tokio::test]
-    async fn should_not_find_an_email() {}
+    async fn should_not_find_inexistent_email() {
+        let email = fake_email();
+        assert!(!email_exists(&email).await);
+    }
 
     #[tokio::test]
-    async fn should_find_an_username() {}
+    async fn should_find_an_existing_username() {
+        let user = insert_test_user().await;
+
+        assert!(username_exists(&user.username).await);
+    }
 
     #[tokio::test]
-    async fn should_not_find_an_username() {}
+    async fn should_not_find_inexistent_username() {
+        let username = fake_username();
+
+        assert!(!username_exists(&username).await);
+    }
 
     #[tokio::test]
-    async fn should_insert_a_new_user() {}
+    async fn should_insert_a_user() {
+        let input = RegisterInput {
+            username: fake_username(),
+            email: fake_email(),
+            password: fake_password(),
+            full_name: fake_name(),
+            birthdate: fake_birthdate(),
+            country_alpha2: fake_country_alpha2(),
+        };
+
+        let result = insert_user(&input).await;
+
+        assert!(result.is_ok());
+
+        let user = result.unwrap();
+
+        assert_eq!(user.username, input.username);
+        assert_eq!(user.email, input.email);
+        assert_eq!(user.full_name, input.full_name);
+        assert_eq!(user.birthdate.to_string(), input.birthdate);
+        assert_eq!(user.country_alpha2, input.country_alpha2);
+    }
 
     #[tokio::test]
-    async fn should_fail_to_insert_a_new_user() {}
+    async fn should_fail_to_insert_a_user_with_existent_username() {
+        let input = RegisterInput {
+            username: insert_test_user().await.username.to_string(),
+            email: fake_email(),
+            password: fake_password(),
+            full_name: fake_name(),
+            birthdate: fake_birthdate(),
+            country_alpha2: fake_country_alpha2(),
+        };
+
+        let result = insert_user(&input).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn should_fail_to_insert_a_user_with_existent_email() {
+        let input = RegisterInput {
+            username: fake_username(),
+            email: insert_test_user().await.email.to_string(),
+            password: fake_password(),
+            full_name: fake_name(),
+            birthdate: fake_birthdate(),
+            country_alpha2: fake_country_alpha2(),
+        };
+
+        let result = insert_user(&input).await;
+
+        assert!(result.is_err());
+    }
 }

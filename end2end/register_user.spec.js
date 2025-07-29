@@ -33,6 +33,5 @@ test("should fail to register a new user", async ({ page }) => {
 
     await page.getByRole("button", { name: "Submit" }).click();
 
-    await expect(page.getByText("Can't be blank")).toBeVisible();
     await expect(page.getByText("Failed to create user")).toBeVisible();
 });

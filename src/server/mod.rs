@@ -3,10 +3,10 @@ use sqlx::postgres::PgPoolOptions;
 use tokio::sync::OnceCell;
 
 mod config;
-mod models;
 
 pub mod commands;
 pub mod constants;
+pub mod models;
 
 use config::DATABASE_CONFIG;
 

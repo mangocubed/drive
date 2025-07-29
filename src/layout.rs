@@ -21,7 +21,7 @@ pub fn Layout() -> Element {
     use_effect(move || is_loading.set(false));
 
     rsx! {
-        div { class: "navbar bg-base-300 shadow-md",
+        div { class: "navbar bg-base-300 shadow-md px-3",
             div { class: "navbar-start",
                 div { class: "dropdown",
                     button { class: "btn btn-ghost lg:hidden", Bars3Outline {} }
@@ -31,7 +31,10 @@ pub fn Layout() -> Element {
                     }
                 }
 
-                Link { class: "btn btn-ghost text-xl", to: Routes::home(), "Lime3" }
+                Link { class: "flex gap-2 items-center", to: Routes::home(),
+                    img { class: "h-[36px]", src: ICON_SVG }
+                    div { class: "text-xl font-bold", "Lime3" }
+                }
             }
 
             div { class: "navbar-center hidden lg:flex",

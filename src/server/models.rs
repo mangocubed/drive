@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub struct User<'a> {
     pub id: Uuid,
     pub username: Cow<'a, str>,
@@ -19,6 +20,7 @@ pub struct User<'a> {
 }
 
 impl User<'_> {
+    #[allow(dead_code)]
     pub fn is_disabled(&self) -> bool {
         self.disabled_at.is_some()
     }

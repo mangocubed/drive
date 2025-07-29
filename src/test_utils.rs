@@ -3,9 +3,16 @@ use std::fmt::Display;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 
+use chrono::{DateTime, Utc};
 use fake::Fake;
-use fake::faker::internet::en::{FreeEmail, Username};
+use fake::faker::address::en::CountryCode;
+use fake::faker::chrono::en::DateTimeBefore;
+use fake::faker::internet::en::{FreeEmail, Password, Username};
+use fake::faker::name::en::Name;
 use rand::rng;
+
+use crate::inputs::RegisterInput;
+use crate::server::models::User;
 
 fn unique_fake<T, F>(prefix: &str, fake_fn: F) -> T
 where
@@ -53,8 +60,23 @@ where
     fake
 }
 
-fn fake_email() -> String {
+pub fn fake_birthdate() -> String {
+    DateTimeBefore(Utc::now())
+        .fake::<DateTime<Utc>>()
+        .date_naive()
+        .to_string()
+}
+
+pub fn fake_country_alpha2() -> String {
+    CountryCode().fake()
+}
+
+pub fn fake_email() -> String {
     unique_fake("email", || FreeEmail().fake_with_rng(&mut rng()))
+}
+
+pub fn fake_password() -> String {
+    Password(6..128).fake()
 }
 
 pub fn fake_username() -> String {
@@ -63,4 +85,27 @@ pub fn fake_username() -> String {
         username.truncate(16);
         username
     })
+}
+
+pub fn fake_name() -> String {
+    unique_fake("name", || {
+        let mut name: String = Name().fake_with_rng(&mut rng());
+        name.truncate(256);
+        name
+    })
+}
+
+pub async fn insert_test_user<'a>() -> User<'a> {
+    let input = RegisterInput {
+        username: fake_username(),
+        email: fake_email(),
+        password: fake_password(),
+        full_name: fake_name(),
+        birthdate: fake_birthdate(),
+        country_alpha2: fake_country_alpha2(),
+    };
+
+    crate::server::commands::insert_user(&input)
+        .await
+        .expect("Could not insert user")
 }
