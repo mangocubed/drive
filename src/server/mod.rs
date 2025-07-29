@@ -4,6 +4,10 @@ use tokio::sync::OnceCell;
 
 mod config;
 
+pub mod commands;
+pub mod constants;
+pub mod models;
+
 use config::DATABASE_CONFIG;
 
 static DB_POOL_CELL: OnceCell<PgPool> = OnceCell::const_new();

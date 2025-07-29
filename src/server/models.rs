@@ -1,0 +1,27 @@
+use std::borrow::Cow;
+
+use chrono::{DateTime, NaiveDate, Utc};
+use uuid::Uuid;
+
+#[allow(dead_code)]
+pub struct User<'a> {
+    pub id: Uuid,
+    pub username: Cow<'a, str>,
+    pub email: Cow<'a, str>,
+    pub encrypted_password: Cow<'a, str>,
+    pub display_name: String,
+    pub full_name: String,
+    pub birthdate: NaiveDate,
+    pub language_code: String,
+    pub country_alpha2: String,
+    pub disabled_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl User<'_> {
+    #[allow(dead_code)]
+    pub fn is_disabled(&self) -> bool {
+        self.disabled_at.is_some()
+    }
+}

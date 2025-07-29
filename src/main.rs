@@ -1,12 +1,19 @@
 use dioxus::prelude::*;
 
 mod components;
+mod forms;
+mod icons;
+mod inputs;
 mod layout;
 mod pages;
 mod routes;
+mod server_functions;
 
 #[cfg(feature = "server")]
 mod server;
+
+#[cfg(test)]
+mod test_utils;
 
 use routes::Routes;
 
