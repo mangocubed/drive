@@ -7,13 +7,14 @@ use crate::server_functions::attempt_to_register;
 #[component]
 pub fn RegisterPage() -> Element {
     let form_provider = use_form_provider(attempt_to_register);
+    let navigator = use_navigator();
 
     rsx! {
         PageTitle { "Register" }
 
         h1 { class: "h1", "Register" }
 
-        Form { provider: form_provider,
+        Form { on_success: |()| { navigator.push(Router::home()); }, provider: form_provider,
             TextField {
                 id: "username",
                 label: "Username",

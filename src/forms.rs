@@ -87,7 +87,7 @@ pub fn use_form_provider<
 }
 
 #[component]
-pub fn Form(children: Element, provider: FormProvider) -> Element {
+pub fn Form(children: Element, on_success: Callback<()>, provider: FormProvider) -> Element {
     rsx! {
         form {
             class: "form",
@@ -100,7 +100,7 @@ pub fn Form(children: Element, provider: FormProvider) -> Element {
             },
             match &*provider.status.read() {
                 FormStatus::Success(message) => rsx! {
-                    SuccessModal { {message.clone()} }
+                    SuccessModal { on_close: on_success, {message.clone()} }
                 },
                 FormStatus::Failed(message, _) => rsx! {
                     div { class: "py-2 has-[div:empty]:hidden",
@@ -203,7 +203,7 @@ pub fn SelectField(id: String, label: String, name: String, children: Element) -
 }
 
 #[component]
-fn SuccessModal(children: Element) -> Element {
+fn SuccessModal(children: Element, on_close: Callback<()>) -> Element {
     let is_open = use_signal(|| true);
 
     rsx! {
@@ -214,6 +214,8 @@ fn SuccessModal(children: Element) -> Element {
                     class: "btn btn-primary",
                     onclick: |event| {
                         event.prevent_default();
+                        on_close.call(());
+                        is_open.write() = false;
                     },
                     "Ok"
                 }

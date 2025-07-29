@@ -20,6 +20,10 @@ test("should register a new user", async ({ page }) => {
     await page.getByRole("button", { name: "Submit" }).click();
 
     await expect(page.getByText("User created successfully")).toBeVisible();
+    
+    await page.getByRole("button", { name: "Ok" }).click();
+    
+    await expect(page.locator("h1", { hasText: "Home" })).toBeVisible();
 });
 
 test("should fail to register a new user", async ({ page }) => {
