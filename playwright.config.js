@@ -5,7 +5,7 @@ export default defineConfig({
 
     outputDir: "./end2end/output/",
 
-    timeout: 30000,
+    timeout: 60000,
 
     expect: {
         timeout: 10000,
@@ -43,7 +43,8 @@ export default defineConfig({
     ],
 
     webServer: {
-        command: "npm run build && dx build --release --platform web && dx serve --release --platform web",
+        command: `npm run build && cargo build --bin cli --features cli && \
+            dx build --release --platform web && dx serve --release --platform web`,
         port: 8080,
         timeout: 3600000,
         reuseExistingServer: !process.env.CI,

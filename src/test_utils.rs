@@ -12,6 +12,7 @@ use fake::faker::name::en::Name;
 use rand::rng;
 
 use crate::inputs::RegisterInput;
+use crate::server::commands::insert_user;
 use crate::server::models::User;
 
 fn unique_fake<T, F>(prefix: &str, fake_fn: F) -> T
@@ -105,7 +106,5 @@ pub async fn insert_test_user<'a>() -> User<'a> {
         country_alpha2: fake_country_alpha2(),
     };
 
-    crate::server::commands::insert_user(&input)
-        .await
-        .expect("Could not insert user")
+    insert_user(&input).await.expect("Could not insert user")
 }
