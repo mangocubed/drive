@@ -18,7 +18,8 @@ pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, Valid
 
     let user = sqlx::query_as!(
         User,
-        "SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1 LIMIT 1",
+        "SELECT * FROM users WHERE disabled_at IS NULL AND LOWER(username) = $1 OR LOWER(email) = $1
+        LIMIT 1",
         input.username_or_email.to_lowercase()
     )
     .fetch_one(db_pool)
@@ -149,10 +150,30 @@ mod tests {
     use crate::test_utils::*;
 
     use super::*;
+    
+    #[tokio::test]
+    async fn should_authenticate_user() {
+        let password = fake_password();
+        let user = insert_test_user(Some(&password)).await;
+        let input = LoginInput { username_or_email: fake_username(), password };
+        
+        let result = authenticate_user(input).await;
+        
+        assert!(result.is_ok());
+    }
+    
+    #[tokio::test]
+    async fn should_not_authenticate_user() {
+        let input = LoginInput { username_or_email: fake_username(), password: fake_password() };
+        
+        let result = authenticate_user(input).await;
+        
+        assert!(result.is_err());
+    }
 
     #[tokio::test]
     async fn should_find_existing_email() {
-        let user = insert_test_user().await;
+        let user = insert_test_user(None).await;
 
         assert!(email_exists(&user.email).await);
     }
@@ -165,7 +186,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_find_an_existing_username() {
-        let user = insert_test_user().await;
+        let user = insert_test_user(None).await;
 
         assert!(username_exists(&user.username).await);
     }
@@ -202,9 +223,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_fail_to_insert_a_user_with_existent_username() {
+    async fn should_not_insert_a_user_with_existent_username() {
+        let username = insert_test_user(None).await.username.to_string();
         let input = RegisterInput {
-            username: insert_test_user().await.username.to_string(),
+            username,
             email: fake_email(),
             password: fake_password(),
             full_name: fake_name(),
@@ -218,10 +240,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_fail_to_insert_a_user_with_existent_email() {
+    async fn should_not_insert_a_user_with_existent_email() {
+        let email = insert_test_user(None).await.email.to_string();
         let input = RegisterInput {
             username: fake_username(),
-            email: insert_test_user().await.email.to_string(),
+            email,
             password: fake_password(),
             full_name: fake_name(),
             birthdate: fake_birthdate(),

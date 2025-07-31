@@ -96,11 +96,17 @@ pub fn fake_name() -> String {
     })
 }
 
-pub async fn insert_test_user<'a>() -> User<'a> {
+pub async fn insert_test_user<'a>(password: Option<&str>) -> User<'a> {
+    let password = if let Some(password) = password {
+        password
+    } else {
+        fake_password()
+    };
+
     let input = RegisterInput {
         username: fake_username(),
         email: fake_email(),
-        password: fake_password(),
+        password,
         full_name: fake_name(),
         birthdate: fake_birthdate(),
         country_alpha2: fake_country_alpha2(),
