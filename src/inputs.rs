@@ -43,6 +43,15 @@ fn validate_username(value: &String) -> Result<(), ValidationError> {
     Ok(())
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "server", derive(Validate))]
+pub struct LoginInput {
+    #[cfg_attr(feature = "server", validate(length(min = 1, message = "Can't be blank")))]
+    pub username_or_email: String,
+    #[cfg_attr(feature = "server", validate(length(min = 1, message = "Can't be blank")))]
+    pub password: String,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[cfg_attr(feature = "server", derive(Validate))]
 pub struct RegisterInput {

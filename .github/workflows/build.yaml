@@ -30,6 +30,23 @@ jobs:
             - name: Build for android
               run: dx build --release --platform android
 
+    build_cli:
+        runs-on: ubuntu-24.04
+        services:
+            postgres:
+                image: postgres:17-alpine
+                env:
+                    POSTGRES_USER: lime3
+                    POSTGRES_PASSWORD: lime3
+                    POSTGRES_DB: lime3_test
+                ports:
+                    - 5432:5432
+                options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup-dioxus
+            - run: cargo build --bin cli --features cli
+
     build_stylesheet:
         runs-on: ubuntu-24.04
         steps:

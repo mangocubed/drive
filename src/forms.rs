@@ -9,6 +9,7 @@ use validator::ValidationErrors;
 
 use crate::components::Modal;
 use crate::icons::{EyeMini, EyeSlashMini};
+use crate::server_functions::ServFnResult;
 
 #[derive(Clone, PartialEq)]
 pub struct FormProvider {
@@ -54,7 +55,7 @@ fn use_form_context() -> FormProvider {
 pub fn use_form_provider<
     FA: Fn(I) -> R + Copy + 'static,
     I: Clone + DeserializeOwned + 'static,
-    R: IntoFuture<Output = Result<FormStatus, ServerFnError>>,
+    R: IntoFuture<Output = ServFnResult<FormStatus>>,
 >(
     action: FA,
 ) -> FormProvider {
@@ -74,8 +75,14 @@ pub fn use_form_provider<
         spawn(async move {
             let result = action(input).await;
 
-            if let Ok(response) = result {
-                *status.write() = response;
+            match result {
+                Ok(response) => {
+                    *status.write() = response;
+                }
+                Err(ServerFnError::ServerError(error)) => {
+                    error.run_action();
+                }
+                _ => (),
             }
         });
     });
@@ -87,7 +94,7 @@ pub fn use_form_provider<
 }
 
 #[component]
-pub fn Form(children: Element, on_success: Callback<()>, provider: FormProvider) -> Element {
+pub fn Form(children: Element, on_success: Callback, provider: FormProvider) -> Element {
     rsx! {
         form {
             class: "form",
