@@ -98,7 +98,7 @@ pub fn fake_name() -> String {
 
 pub async fn insert_test_user<'a>(password: Option<&str>) -> User<'a> {
     let password = if let Some(password) = password {
-        password
+        password.to_owned()
     } else {
         fake_password()
     };

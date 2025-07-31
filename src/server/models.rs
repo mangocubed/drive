@@ -14,7 +14,6 @@ fn verify_password(encrypted_password: &str, password: &str) -> bool {
     argon2.verify_password(password.as_bytes(), &password_hash).is_ok()
 }
 
-#[allow(dead_code)]
 pub struct User<'a> {
     pub id: Uuid,
     pub username: Cow<'a, str>,
@@ -52,6 +51,8 @@ impl User<'_> {
 pub struct UserSession {
     pub id: Uuid,
     pub user_id: Uuid,
+    #[allow(dead_code)]
     pub created_at: DateTime<Utc>,
+    #[allow(dead_code)]
     pub updated_at: Option<DateTime<Utc>>,
 }
