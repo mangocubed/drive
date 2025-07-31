@@ -45,11 +45,13 @@ pub struct SessionConfig {
 
 impl Default for SessionConfig {
     fn default() -> Self {
+        let db_number = if cfg!(test) { "10" } else { "0" };
+
         Self {
             domain: "".to_owned(),
             key: "abcdefghijklmnopqrestuvvwxyz0123456789ABCDEFGHIJKLMNOPQRESTUVVWX".to_owned(),
             name: "_lime3_session".to_owned(),
-            redis_url: "redis://127.0.0.1:6379/0".to_owned(),
+            redis_url: format!("redis://127.0.0.1:6379/{db_number}"),
             secure: false,
         }
     }
