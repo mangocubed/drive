@@ -11,9 +11,10 @@ use fake::faker::internet::en::{FreeEmail, Password, Username};
 use fake::faker::name::en::Name;
 use rand::rng;
 
-use crate::inputs::RegisterInput;
-use crate::server::commands::insert_user;
-use crate::server::models::User;
+use crate::enums::FileVisibility;
+use crate::inputs::{FolderInput, RegisterInput};
+use crate::server::commands::{insert_folder, insert_user};
+use crate::server::models::{Folder, User};
 
 fn unique_fake<T, F>(prefix: &str, fake_fn: F) -> T
 where
@@ -94,6 +95,42 @@ pub fn fake_name() -> String {
         name.truncate(256);
         name
     })
+}
+
+pub async fn insert_test_folder<'a>(user: Option<&User<'_>>, parent_folder: Option<&Folder<'_>>) -> Folder<'a> {
+    let user = if let Some(user) = user {
+        user
+    } else {
+        &insert_test_user(None).await
+    };
+    let parent_folder_id = parent_folder.map(|folder| folder.id);
+
+    let input = FolderInput {
+        parent_folder_id,
+        name: fake_name(),
+        visibility: FileVisibility::Private,
+    };
+
+    insert_folder(user, &input).await.expect("Could not insert folder")
+}
+
+pub async fn insert_test_folders<'a>(
+    count: u8,
+    user: Option<&User<'_>>,
+    parent_folder: Option<&Folder<'_>>,
+) -> Vec<Folder<'a>> {
+    let user = if let Some(user) = user {
+        user
+    } else {
+        &insert_test_user(None).await
+    };
+    let mut folders = Vec::new();
+
+    for _ in 0..count {
+        folders.push(insert_test_folder(Some(user), parent_folder).await);
+    }
+
+    folders
 }
 
 pub async fn insert_test_user<'a>(password: Option<&str>) -> User<'a> {

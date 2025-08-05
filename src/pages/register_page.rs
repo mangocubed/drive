@@ -1,14 +1,15 @@
 use dioxus::prelude::*;
 
 use crate::components::{PageTitle, RequireNoLogin};
-use crate::forms::{Form, PasswordField, SelectField, TextField, use_form_provider};
+use crate::forms::{Form, FormSuccessModal, PasswordField, SelectField, TextField, use_form_provider};
 use crate::routes::Routes;
 use crate::server_functions::attempt_to_register;
 use crate::use_current_user;
 
 #[component]
 pub fn RegisterPage() -> Element {
-    let form_provider = use_form_provider(attempt_to_register);
+    use_form_provider(attempt_to_register);
+
     let navigator = use_navigator();
     let mut current_user = use_current_user();
 
@@ -18,12 +19,14 @@ pub fn RegisterPage() -> Element {
 
             h1 { class: "h1", "Register" }
 
-            Form {
-                on_success: move |()| {
+            FormSuccessModal {
+                on_close: move || {
                     navigator.push(Routes::home());
                     current_user.restart();
                 },
-                provider: form_provider,
+            }
+
+            Form {
                 TextField {
                     id: "username",
                     label: "Username",

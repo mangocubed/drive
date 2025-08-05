@@ -4,14 +4,27 @@ use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
 
+use crate::enums::FileVisibility;
+
 fn verify_password(encrypted_password: &str, password: &str) -> bool {
     let argon2 = Argon2::default();
 
-    let Ok(password_hash) = PasswordHash::new(&encrypted_password) else {
+    let Ok(password_hash) = PasswordHash::new(encrypted_password) else {
         return false;
     };
 
     argon2.verify_password(password.as_bytes(), &password_hash).is_ok()
+}
+
+#[allow(dead_code)]
+pub struct Folder<'a> {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub parent_folder_id: Option<Uuid>,
+    pub name: Cow<'a, str>,
+    pub visibility: FileVisibility,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 pub struct User<'a> {

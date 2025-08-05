@@ -32,6 +32,12 @@ pub enum FormStatus {
     Failed(String, ValidationErrors),
 }
 
+fn on_keydown(event: KeyboardEvent) {
+    if event.key() == Key::Enter {
+        event.prevent_default();
+    }
+}
+
 fn use_error_memo(id: String) -> Memo<Option<String>> {
     let form_context = use_form_context();
 
@@ -94,7 +100,15 @@ pub fn use_form_provider<
 }
 
 #[component]
-pub fn Form(children: Element, on_success: Callback, provider: FormProvider) -> Element {
+pub fn Form(children: Element, #[props(optional)] on_success: Callback) -> Element {
+    let form_context = use_form_context();
+
+    use_effect(move || {
+        if let FormStatus::Success(_) = &*form_context.status.read() {
+            on_success.call(())
+        }
+    });
+
     rsx! {
         form {
             class: "form",
@@ -103,18 +117,12 @@ pub fn Form(children: Element, on_success: Callback, provider: FormProvider) -> 
             onsubmit: move |event| {
                 event.prevent_default();
 
-                provider.action.call(event.data().values());
+                form_context.action.call(event.data().values());
             },
-            match &*provider.status.read() {
-                FormStatus::Success(message) => rsx! {
-                    SuccessModal { on_close: on_success, {message.clone()} }
-                },
-                FormStatus::Failed(message, _) => rsx! {
-                    div { class: "py-2 has-[div:empty]:hidden",
-                        div { class: "alert alert-error", role: "alert", {message.clone()} }
-                    }
-                },
-                _ => rsx! {},
+            if let FormStatus::Failed(message, _) = &*form_context.status.read() {
+                div { class: "py-2 has-[div:empty]:hidden",
+                    div { class: "alert alert-error", role: "alert", {message.clone()} }
+                }
             }
 
             {children}
@@ -123,12 +131,12 @@ pub fn Form(children: Element, on_success: Callback, provider: FormProvider) -> 
                 button {
                     class: "btn btn-block btn-primary",
                     onclick: move |event| {
-                        if provider.is_pending() {
+                        if form_context.is_pending() {
                             event.prevent_default();
                         }
                     },
                     r#type: "submit",
-                    if provider.is_pending() {
+                    if form_context.is_pending() {
                         span { class: "loading loading-spinner" }
                     } else {
                         "Submit"
@@ -153,6 +161,32 @@ pub fn FormField(children: Element, error: Memo<Option<String>>, id: String, lab
 }
 
 #[component]
+pub fn FormSuccessModal(#[props(optional)] on_close: Callback<()>) -> Element {
+    let form_context = use_form_context();
+    let mut is_open = use_signal(|| true);
+
+    rsx! {
+        if let FormStatus::Success(message) = &*form_context.status.read() {
+            Modal { is_open, is_closable: false,
+                {message.clone()}
+
+                div { class: "modal-action",
+                    button {
+                        class: "btn btn-primary",
+                        onclick: move |event| {
+                            event.prevent_default();
+                            on_close.call(());
+                            *is_open.write() = false;
+                        },
+                        "Ok"
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
 pub fn PasswordField(id: String, label: String, #[props(default = 256)] max_length: u16, name: String) -> Element {
     let error = use_error_memo(id.clone());
     let mut input_type = use_signal(|| "password");
@@ -167,6 +201,7 @@ pub fn PasswordField(id: String, label: String, #[props(default = 256)] max_leng
                     id,
                     maxlength: max_length,
                     name,
+                    onkeydown: on_keydown,
                     r#type: input_type,
                 }
 
@@ -210,28 +245,6 @@ pub fn SelectField(id: String, label: String, name: String, children: Element) -
 }
 
 #[component]
-fn SuccessModal(children: Element, on_close: Callback<()>) -> Element {
-    let mut is_open = use_signal(|| true);
-
-    rsx! {
-        Modal { is_open, is_closable: false,
-            {children}
-            div { class: "modal-action",
-                button {
-                    class: "btn btn-primary",
-                    onclick: move |event| {
-                        event.prevent_default();
-                        on_close.call(());
-                        *is_open.write() = false;
-                    },
-                    "Ok"
-                }
-            }
-        }
-    }
-}
-
-#[component]
 pub fn TextField(
     id: String,
     #[props(default = "text".to_owned())] input_type: String,
@@ -249,6 +262,7 @@ pub fn TextField(
                 id,
                 maxlength: max_length,
                 name,
+                onkeydown: on_keydown,
                 r#type: input_type,
             }
         }

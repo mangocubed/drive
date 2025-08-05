@@ -1,14 +1,15 @@
 use dioxus::prelude::*;
 
 use crate::components::{PageTitle, RequireNoLogin};
-use crate::forms::{Form, PasswordField, TextField, use_form_provider};
+use crate::forms::{Form, FormSuccessModal, PasswordField, TextField, use_form_provider};
 use crate::routes::Routes;
 use crate::server_functions::attempt_to_login;
 use crate::use_current_user;
 
 #[component]
 pub fn LoginPage() -> Element {
-    let form_provider = use_form_provider(attempt_to_login);
+    use_form_provider(attempt_to_login);
+
     let navigator = use_navigator();
     let mut current_user = use_current_user();
 
@@ -18,12 +19,14 @@ pub fn LoginPage() -> Element {
 
             h1 { class: "h1", "Login" }
 
-            Form {
-                on_success: move |()| {
+            FormSuccessModal {
+                on_close: move |()| {
                     navigator.push(Routes::home());
                     current_user.restart();
                 },
-                provider: form_provider,
+            }
+
+            Form {
                 TextField {
                     id: "username_or_email",
                     label: "Username or email",

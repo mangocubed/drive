@@ -1,13 +1,16 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[cfg(feature = "server")]
 use validator::{Validate, ValidationError};
 
-#[cfg(feature = "server")]
-use crate::server::constants::{ERROR_IS_INVALID, REGEX_USERNAME};
+use crate::enums::FileVisibility;
 
 #[cfg(feature = "server")]
-fn validate_birthdate(value: &String) -> Result<(), ValidationError> {
+use crate::server::constants::{ERROR_IS_INVALID, REGEX_FOLDER_NAME, REGEX_USERNAME};
+
+#[cfg(feature = "server")]
+fn validate_birthdate(value: &str) -> Result<(), ValidationError> {
     use chrono::{NaiveDate, Utc};
 
     if let Ok(date) = NaiveDate::parse_from_str(value, "%Y-%m-%d") {
@@ -22,10 +25,10 @@ fn validate_birthdate(value: &String) -> Result<(), ValidationError> {
 }
 
 #[cfg(feature = "server")]
-fn validate_country_alpha2(value: &String) -> Result<(), ValidationError> {
+fn validate_country_alpha2(value: &str) -> Result<(), ValidationError> {
     use rust_iso3166::ALL_ALPHA2;
 
-    if !ALL_ALPHA2.contains(&value.as_str()) {
+    if !ALL_ALPHA2.contains(&value) {
         return Err(ERROR_IS_INVALID.clone());
     }
 
@@ -33,9 +36,7 @@ fn validate_country_alpha2(value: &String) -> Result<(), ValidationError> {
 }
 
 #[cfg(feature = "server")]
-fn validate_username(value: &String) -> Result<(), ValidationError> {
-    use uuid::Uuid;
-
+fn validate_username(value: &str) -> Result<(), ValidationError> {
     if Uuid::try_parse(value).is_ok() {
         return Err(ERROR_IS_INVALID.clone());
     }
@@ -45,14 +46,25 @@ fn validate_username(value: &String) -> Result<(), ValidationError> {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "server", derive(Validate))]
+pub struct FolderInput {
+    pub parent_folder_id: Option<Uuid>,
+    #[cfg_attr(feature = "server", validate(length(min = 1, max = 256, message = "Can't be blank"),
+        regex(path = *REGEX_FOLDER_NAME, message = "Is invalid"),
+    ))]
+    pub name: String,
+    pub visibility: FileVisibility,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "server", derive(Validate))]
 pub struct LoginInput {
-    #[cfg_attr(feature = "server", validate(length(min = 1, message = "Can't be blank")))]
+    #[cfg_attr(feature = "server", validate(length(min = 1, max = 256, message = "Can't be blank")))]
     pub username_or_email: String,
-    #[cfg_attr(feature = "server", validate(length(min = 1, message = "Can't be blank")))]
+    #[cfg_attr(feature = "server", validate(length(min = 1, max = 256, message = "Can't be blank")))]
     pub password: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "server", derive(Validate))]
 pub struct RegisterInput {
     #[cfg_attr(

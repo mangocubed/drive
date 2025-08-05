@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 
 mod components;
+mod enums;
 mod forms;
 mod icons;
 mod inputs;

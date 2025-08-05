@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { faker } from "@faker-js/faker/locale/en";
+import { waitForLoadingOverlay } from "./shared_expects";
 
 test("should be a link to register page", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.locator(".loading-overlay")).toHaveClass(/is-done/);
+    await waitForLoadingOverlay(page);
 
     page.getByRole("link", { name: "Login" }).click();
 
@@ -22,7 +23,8 @@ test("should register a new user", async ({ page }) => {
 
     await page.goto("/register");
 
-    await expect(page.locator(".loading-overlay")).toHaveClass(/is-done/);
+    await waitForLoadingOverlay(page);
+
     await expect(page.locator("h1", { hasText: "Register" })).toBeVisible();
 
     await page.getByLabel("Username").fill(username);
