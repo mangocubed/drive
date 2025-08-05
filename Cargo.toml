@@ -25,7 +25,7 @@ sqlx = { version = "0.8.6", features = [
     "uuid",
 ], optional = true }
 time = { version = "0.3.41", optional = true }
-tokio = { version = "1.47.0", features = [
+tokio = { version = "1.47.1", features = [
     "macros",
     "rt-multi-thread",
 ], optional = true }
