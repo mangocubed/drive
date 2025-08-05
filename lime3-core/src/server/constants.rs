@@ -12,5 +12,3 @@ pub static ERROR_IS_INVALID: LazyLock<ValidationError> =
 
 pub static REGEX_FOLDER_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"\A[^\/:*?"<>|]+\z"#).unwrap());
 pub static REGEX_USERNAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[-_.]?([[:alnum:]]+[-_.]?)+\z").unwrap());
-
-pub const SESSION_KEY_USER_SESSION_ID: &str = "user_session_id";

@@ -1,0 +1,28 @@
+[package]
+name = "lime3-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+argon2 =  { version = "0.5.3", optional = true }
+chrono = { version = "0.4.41", features = ["serde"] }
+figment = { version = "0.10.19", features = ["env"], optional = true }
+regex = { version = "1.11.1", optional = true }
+rust_iso3166 = { workspace = true }
+sqlx = { version = "0.8.6", features = [
+    "chrono",
+    "postgres",
+    "runtime-tokio",
+    "uuid",
+], optional = true }
+serde = { workspace = true }
+tokio = { workspace = true, optional = true }
+uuid = { workspace = true }
+validator = { workspace = true }
+
+[dev-dependencies]
+fake = { version = "4.4.0", features = ["chrono"] }
+rand = "0.9.2"
+
+[features]
+server = ["dep:argon2", "dep:figment", "dep:regex", "dep:sqlx", "dep:tokio", "validator/derive"]

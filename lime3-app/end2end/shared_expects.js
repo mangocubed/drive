@@ -14,7 +14,7 @@ export async function loginAndGoToHome(page) {
     const birthdate = faker.date.birthdate().toISOString().split("T")[0];
     const country = faker.location.countryCode();
     const result = execSync(
-        `cargo run --bin cli --features cli create-user \
+        `cargo run --bin lime3-cli create-user \
                 --username '${username}' --email '${email}' --password '${password}' \
                 --full-name '${fullName}' --birthdate '${birthdate}' --country '${country}'`,
     );

@@ -1,9 +1,10 @@
 use tower_sessions::Session;
 use uuid::Uuid;
 
-use super::commands::get_user_session_by_id;
-use super::constants::SESSION_KEY_USER_SESSION_ID;
-use super::models::UserSession;
+use lime3_core::server::commands::get_user_session_by_id;
+use lime3_core::server::models::UserSession;
+
+const SESSION_KEY_USER_SESSION_ID: &str = "user_session_id";
 
 pub trait SessionTrait {
     fn user_session(&self) -> impl Future<Output = anyhow::Result<UserSession>>;

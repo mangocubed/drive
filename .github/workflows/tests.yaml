@@ -26,7 +26,7 @@ jobs:
             - uses: taiki-e/install-action@nextest
             - uses: ./.github/actions/setup-dioxus
             - name: Run all unit tests
-              run: cargo nextest run --all-features
+              run: cargo nextest run --package lime3-core --all-features
 
     end2end_tests:
         runs-on: ubuntu-24.04
