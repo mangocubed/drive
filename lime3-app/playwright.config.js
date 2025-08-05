@@ -43,8 +43,10 @@ export default defineConfig({
     ],
 
     webServer: {
-        command: `npm run build && cargo build --bin cli --features cli && \
-            dx build --release --platform web && dx serve --release --platform web`,
+        cwd: "..",
+        command: `npm run build && cargo build --bin lime3-cli && \
+            dx build --package lime3-app --release --platform web && \
+            dx serve --package lime3-app --release --platform web`,
         port: 8080,
         timeout: 3600000,
         reuseExistingServer: !process.env.CI,

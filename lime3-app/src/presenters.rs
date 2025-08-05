@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::enums::FileVisibility;
+use lime3_core::enums::FileVisibility;
 
 #[cfg(feature = "server")]
-use crate::server::commands::get_folder_by_id;
+use lime3_core::server::commands::get_folder_by_id;
 #[cfg(feature = "server")]
-use crate::server::models::{Folder, User};
+use lime3_core::server::models::{Folder, User};
 
 #[cfg(feature = "server")]
 pub trait AsyncInto<T> {

@@ -9,8 +9,8 @@ const ARG_COUNTRY: &str = "country";
 
 const COMMAND_CREATE_USER: &str = "create-user";
 
-use lime3::inputs::RegisterInput;
-use lime3::server::commands::insert_user;
+use lime3_core::inputs::RegisterInput;
+use lime3_core::server::commands::insert_user;
 
 #[tokio::main]
 async fn main() {

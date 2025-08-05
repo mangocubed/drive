@@ -1,8 +1,8 @@
 {
     "scripts": {
-        "build": "npx @tailwindcss/cli --minify --input ./style.css --output ./assets/style.css",
-        "watch": "npx @tailwindcss/cli --minify --input ./style.css --output ./assets/style.css --watch",
-        "end2end": "npx playwright test --config playwright.config.js"
+        "build": "npx @tailwindcss/cli --minify --input ./lime3-app/style.css --output ./lime3-app/assets/style.css",
+        "watch": "npx @tailwindcss/cli --minify --input ./lime3-app/style.css --output ./lime3-app/assets/style.css --watch",
+        "end2end": "npx playwright test --config lime3-app/playwright.config.js"
     },
     "dependencies": {
         "@tailwindcss/cli": "^4.1.11",

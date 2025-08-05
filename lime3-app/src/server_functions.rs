@@ -7,19 +7,21 @@ use tower_sessions::Session;
 #[cfg(feature = "server")]
 use validator::ValidationErrors;
 
+use lime3_core::inputs::{FolderInput, LoginInput, RegisterInput};
+
+#[cfg(feature = "server")]
+use lime3_core::server::commands::*;
+#[cfg(feature = "server")]
+use lime3_core::server::models::{User, UserSession};
+
 use crate::forms::FormStatus;
-use crate::inputs::{FolderInput, LoginInput, RegisterInput};
 use crate::presenters::{FolderPresenter, UserPresenter};
 use crate::routes::Routes;
 
 #[cfg(feature = "server")]
 use crate::presenters::AsyncInto;
 #[cfg(feature = "server")]
-use crate::server::commands::*;
-#[cfg(feature = "server")]
-use crate::server::models::{User, UserSession};
-#[cfg(feature = "server")]
-use crate::server::session::SessionTrait;
+use crate::server::SessionTrait;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ServFnError {

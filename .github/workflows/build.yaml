@@ -24,11 +24,11 @@ jobs:
             - uses: actions/checkout@v4
             - uses: ./.github/actions/setup-dioxus
             - name: Build for web
-              run: dx build --release --platform web
+              run: dx build --package lime3-app --platform web --release
             - name: Build for linux
-              run: dx build --release --platform linux
+              run: dx build --package lime3-app --platform linux --release
             - name: Build for android
-              run: dx build --release --platform android
+              run: dx build --package lime3-app --platform android --release
 
     build_cli:
         runs-on: ubuntu-24.04
@@ -45,7 +45,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: ./.github/actions/setup-dioxus
-            - run: cargo build --bin cli --features cli
+            - run: cargo build --bin lime3-cli
 
     build_stylesheet:
         runs-on: ubuntu-24.04

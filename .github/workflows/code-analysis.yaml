@@ -29,8 +29,8 @@ jobs:
               run: cargo fmt --all --check
             - name: Check with dioxus-cli
               run: |
-                  dx check --all-features
-                  dx fmt --check
+                  dx check --package lime3-app --all-features
+                  dx fmt --package lime3-app --check
 
     check_sql:
         runs-on: ubuntu-24.04

@@ -1,10 +1,8 @@
 use dioxus::prelude::*;
 
 mod components;
-mod enums;
 mod forms;
 mod icons;
-mod inputs;
 mod layout;
 mod pages;
 mod presenters;
@@ -13,9 +11,6 @@ mod server_functions;
 
 #[cfg(feature = "server")]
 mod server;
-
-#[cfg(test)]
-mod test_utils;
 
 use presenters::UserPresenter;
 use routes::Routes;
@@ -34,7 +29,7 @@ async fn main() {
     use tower_sessions::{Expiry, SessionManagerLayer};
     use tower_sessions_redis_store::RedisStore;
 
-    use crate::server::config::SESSION_CONFIG;
+    use lime3_core::server::config::SESSION_CONFIG;
 
     dioxus::logger::initialize_default();
 

@@ -1,69 +1,19 @@
-[package]
-name = "lime3"
-version = "0.0.0-alpha.0"
-authors = ["Javier E. <jaedns@gmail.com>"]
-edition = "2024"
+[workspace]
+resolver = "3"
+members = ["lime3-app", "lime3-cli", "lime3-core"]
 
-[dependencies]
-anyhow = { version = "1.0.98", optional = true }
-argon2 = { version = "0.5.3", optional = true }
-axum = { version = "0.8.4", optional = true }
-chrono = { version = "0.4.41", features = ["serde"] }
-clap = { version = "4.5.42", optional = true }
-cookie = { version = "0.18.1", features = ["private"], optional = true }
-dioxus = { version = "0.7.0-alpha.3", features = ["router", "fullstack"] }
-figment = { version = "0.10.19", features = ["env"], optional = true }
-fred = { version = "10.1.0", optional = true }
-futures = { version = "0.3.31", optional = true }
-regex = { version = "1.11.1", optional = true }
-rust_iso3166 = "0.1.14"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.142"
-sqlx = { version = "0.8.6", features = [
-    "chrono",
-    "postgres",
-    "runtime-tokio",
-    "uuid",
-], optional = true }
-time = { version = "0.3.41", optional = true }
+[workspace.package]
+version = "0.0.0-alpha.0"
+edition = "2024"
+authors = ["Javier E. <jaedns@gmail.com>"]
+
+[workspace.dependencies]
 tokio = { version = "1.47.1", features = [
     "macros",
     "rt-multi-thread",
-], optional = true }
-tower-sessions = { version = "0.14.0", features = ["private"], optional = true }
-tower-sessions-redis-store = { version = "0.16.0", optional = true }
+] }
+rust_iso3166 = "0.1.14"
+serde = { version = "1.0.219", features = ["derive"] }
 uuid = { version = "1.17.0", features = ["serde"] }
 validator = "0.20.0"
-
-[dev-dependencies]
-dioxus-ssr = "0.7.0-alpha.3"
-fake = { version = "4.3.0", features = ["chrono"] }
-rand = "0.9.2"
-
-[[bin]]
-name = "cli"
-required-features = ["cli"]
-
-[features]
-default = ["web"]
-web = ["dioxus/web"]
-desktop = ["dioxus/desktop"]
-mobile = ["dioxus/mobile"]
-server = [
-    "dep:anyhow",
-    "dep:argon2",
-    "dep:axum",
-    "dep:cookie",
-    "dep:figment",
-    "dep:fred",
-    "dep:futures",
-    "dep:regex",
-    "dep:sqlx",
-    "dep:time",
-    "dep:tokio",
-    "dep:tower-sessions",
-    "dep:tower-sessions-redis-store",
-    "dioxus/server",
-    "validator/derive",
-]
-cli = ["dep:clap", "server"]
+lime3-core = { path = "lime3-core" }

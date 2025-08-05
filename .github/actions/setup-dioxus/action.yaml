@@ -31,4 +31,4 @@ runs:
           shell: bash
           run: sqlx database setup
         - shell: bash
-          run: touch assets/style.css
+          run: touch lime3-app/assets/style.css

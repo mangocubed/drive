@@ -3,7 +3,8 @@ use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::enums::FileVisibility;
+use lime3_core::enums::FileVisibility;
+
 use crate::forms::{Form, FormSuccessModal, SelectField, TextField, use_form_provider};
 use crate::icons::{FolderOutline, FolderPlusOutline};
 use crate::routes::Routes;
