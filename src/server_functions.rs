@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[cfg(feature = "server")]
 use tower_sessions::Session;
@@ -7,14 +8,14 @@ use tower_sessions::Session;
 use validator::ValidationErrors;
 
 use crate::forms::FormStatus;
-use crate::inputs::{LoginInput, RegisterInput};
-use crate::presenters::UserPresenter;
+use crate::inputs::{FolderInput, LoginInput, RegisterInput};
+use crate::presenters::{FolderPresenter, UserPresenter};
 use crate::routes::Routes;
 
 #[cfg(feature = "server")]
-use crate::server::commands::{
-    authenticate_user, delete_user_session, get_user_by_id, insert_user, insert_user_session,
-};
+use crate::presenters::AsyncInto;
+#[cfg(feature = "server")]
+use crate::server::commands::*;
 #[cfg(feature = "server")]
 use crate::server::models::{User, UserSession};
 #[cfg(feature = "server")]
@@ -25,6 +26,13 @@ pub enum ServFnError {
     LoginRequired,
     NoLoginRequired,
     Other(String),
+}
+
+#[cfg(feature = "server")]
+impl From<ServFnError> for ServerFnError<ServFnError> {
+    fn from(value: ServFnError) -> Self {
+        ServerFnError::ServerError(value)
+    }
 }
 
 impl ServFnError {
@@ -44,6 +52,20 @@ impl ServFnError {
 }
 
 pub type ServFnResult<T = ()> = ServerFnResult<T, ServFnError>;
+
+#[server]
+pub async fn attempt_to_create_folder(input: FolderInput) -> ServFnResult<FormStatus> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+
+    let result = insert_folder(&user, &input).await;
+
+    match result {
+        Ok(_) => Ok(FormStatus::Success("Folder created successfully".to_owned())),
+        Err(errors) => Ok(FormStatus::Failed("Failed to create folder".to_owned(), errors)),
+    }
+}
 
 #[server]
 pub async fn attempt_to_login(input: LoginInput) -> ServFnResult<FormStatus> {
@@ -120,7 +142,7 @@ pub async fn attempt_to_register(input: RegisterInput) -> ServFnResult<FormStatu
 async fn extract_session() -> ServFnResult<Session> {
     extract()
         .await
-        .map_err(|_| ServerFnError::ServerError(ServFnError::Other("Session layer not found".to_owned())))
+        .map_err(|_| ServFnError::Other("Session layer not found".to_owned()).into())
 }
 
 #[cfg(feature = "server")]
@@ -140,12 +162,46 @@ async fn extract_user_session() -> ServFnResult<Option<UserSession>> {
 }
 
 #[server]
+pub async fn get_all_folders(parent_folder_id: Option<Uuid>) -> ServFnResult<Vec<FolderPresenter>> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+    let parent_folder = if let Some(id) = parent_folder_id {
+        Some(
+            get_folder_by_id(id, Some(&user))
+                .await
+                .map_err(|_| ServFnError::Other("Could not get parent folder".to_owned()))?,
+        )
+    } else {
+        None
+    };
+    let folders = get_all_folders_by_user(&user, parent_folder.as_ref()).await;
+
+    Ok(futures::future::join_all(folders.iter().map(|folder| folder.async_into())).await)
+}
+
+#[server]
 pub async fn get_current_user() -> ServFnResult<Option<UserPresenter>> {
     let Some(user) = extract_user().await? else {
         return Ok(None);
     };
 
     Ok(Some(user.into()))
+}
+
+#[server]
+pub async fn get_folder(id: Uuid) -> ServFnResult<Option<FolderPresenter>> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+
+    let result = get_folder_by_id(id, Some(&user)).await;
+
+    Ok(if let Ok(folder) = result {
+        Some(folder.async_into().await)
+    } else {
+        None
+    })
 }
 
 #[server]

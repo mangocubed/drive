@@ -5,11 +5,12 @@ use chrono::NaiveDate;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
-use crate::inputs::{LoginInput, RegisterInput};
+use crate::enums::FileVisibility;
+use crate::inputs::{FolderInput, LoginInput, RegisterInput};
 
-use super::constants::ERROR_ALREADY_EXISTS;
+use super::constants::{ERROR_ALREADY_EXISTS, ERROR_IS_INVALID};
 use super::db_pool;
-use super::models::{User, UserSession};
+use super::models::{Folder, User, UserSession};
 
 pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, ValidationErrors> {
     input.validate()?;
@@ -60,6 +61,40 @@ fn encrypt_password(value: &str) -> String {
     argon2.hash_password(value.as_bytes(), &salt).unwrap().to_string()
 }
 
+pub async fn get_all_folders_by_user<'a>(user: &User<'_>, parent_folder: Option<&Folder<'_>>) -> Vec<Folder<'a>> {
+    let db_pool = db_pool().await;
+    let parent_folder_id = parent_folder.map(|f| f.id);
+
+    sqlx::query_as!(
+        Folder,
+        r#"SELECT
+            id, user_id, parent_folder_id, name, visibility as "visibility!: FileVisibility", created_at, updated_at
+        FROM folders WHERE user_id = $1 AND (($2::uuid IS NULL AND parent_folder_id IS NULL) OR parent_folder_id = $2)
+        ORDER BY name ASC"#,
+        user.id,          // $1
+        parent_folder_id, // $2
+    )
+    .fetch_all(db_pool)
+    .await
+    .unwrap_or_default()
+}
+
+pub async fn get_folder_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Result<Folder<'a>> {
+    let db_pool = db_pool().await;
+    let user_id = user.map(|u| u.id);
+
+    sqlx::query_as!(
+        Folder,
+        r#"SELECT
+            id, user_id, parent_folder_id, name, visibility as "visibility!: FileVisibility", created_at, updated_at
+        FROM folders WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2) LIMIT 1"#,
+        id,      // $1
+        user_id, // $2
+    )
+    .fetch_one(db_pool)
+    .await
+}
+
 pub async fn get_user_by_id<'a>(id: Uuid) -> sqlx::Result<User<'a>> {
     let db_pool = db_pool().await;
 
@@ -74,6 +109,58 @@ pub async fn get_user_session_by_id(id: uuid::Uuid) -> sqlx::Result<UserSession>
     sqlx::query_as!(UserSession, "SELECT * FROM user_sessions WHERE id = $1 LIMIT 1", id)
         .fetch_one(db_pool)
         .await
+}
+
+pub async fn insert_folder<'a>(user: &User<'_>, input: &FolderInput) -> Result<Folder<'a>, ValidationErrors> {
+    input.validate()?;
+
+    let mut validation_errors = ValidationErrors::new();
+    let db_pool = db_pool().await;
+
+    let name_exists = sqlx::query!(
+        "SELECT id FROM folders WHERE LOWER(name) = $1 LIMIT 1",
+        input.name.to_lowercase() // $1
+    )
+    .fetch_one(db_pool)
+    .await
+    .is_ok();
+
+    if name_exists {
+        validation_errors.add("name", ERROR_ALREADY_EXISTS.clone());
+    }
+
+    if let Some(parent_folder_id) = input.parent_folder_id {
+        let parent_folder_exists = sqlx::query!(
+            "SELECT id FROM folders WHERE user_id = $1 AND id = $2 LIMIT 1",
+            user.id,          // $1
+            parent_folder_id  // $2
+        )
+        .fetch_one(db_pool)
+        .await
+        .is_ok();
+
+        if !parent_folder_exists {
+            validation_errors.add("parent_folder_id", ERROR_IS_INVALID.clone());
+        }
+    }
+
+    if !validation_errors.is_empty() {
+        return Err(validation_errors);
+    }
+
+    sqlx::query_as!(
+        Folder,
+        r#"INSERT INTO folders (user_id, parent_folder_id, name, visibility) VALUES ($1, $2, $3, $4)
+        RETURNING
+            id, user_id, parent_folder_id, name, visibility as "visibility!: FileVisibility", created_at, updated_at"#,
+        user.id,                // $1
+        input.parent_folder_id, // $2
+        input.name,             // $3
+        input.visibility as _   // $4
+    )
+    .fetch_one(db_pool)
+    .await
+    .map_err(|_| ValidationErrors::new())
 }
 
 pub async fn insert_user<'a>(input: &RegisterInput) -> Result<User<'a>, ValidationErrors> {
@@ -202,6 +289,128 @@ mod tests {
         let username = fake_username();
 
         assert!(!username_exists(&username).await);
+    }
+
+    #[tokio::test]
+    async fn should_get_seven_folders_by_user() {
+        let user = insert_test_user(None).await;
+
+        insert_test_folders(7, Some(&user), None).await;
+
+        let folders = get_all_folders_by_user(&user, None).await;
+
+        assert_eq!(folders.len(), 7);
+    }
+
+    #[tokio::test]
+    async fn should_get_seven_folders_by_user_with_parent_folder() {
+        let user = insert_test_user(None).await;
+        let parent_folder = insert_test_folder(Some(&user), None).await;
+
+        insert_test_folders(7, Some(&user), Some(&parent_folder)).await;
+
+        let folders = get_all_folders_by_user(&user, Some(&parent_folder)).await;
+
+        assert_eq!(folders.len(), 7);
+    }
+
+    #[tokio::test]
+    async fn should_get_zero_folders_by_user() {
+        let user = insert_test_user(None).await;
+        let folders = get_all_folders_by_user(&user, None).await;
+
+        assert_eq!(folders.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn should_get_folder_by_id() {
+        let user = insert_test_user(None).await;
+        let folder = insert_test_folder(Some(&user), None).await;
+
+        let result = get_folder_by_id(folder.id, Some(&user)).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_not_get_folder_by_id_with_invalid_user() {
+        let invalid_user = insert_test_user(None).await;
+        let folder = insert_test_folder(None, None).await;
+
+        let result = get_folder_by_id(folder.id, Some(&invalid_user)).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn should_insert_a_folder() {
+        let user = insert_test_user(None).await;
+        let input = FolderInput {
+            parent_folder_id: None,
+            name: fake_name(),
+            visibility: FileVisibility::Private,
+        };
+
+        let result = insert_folder(&user, &input).await;
+
+        assert!(result.is_ok());
+
+        let folder = result.unwrap();
+
+        assert_eq!(folder.user_id, user.id);
+        assert!(folder.parent_folder_id.is_none());
+        assert_eq!(folder.name, input.name);
+    }
+
+    #[tokio::test]
+    async fn should_insert_a_folder_with_parent_folder() {
+        let user = insert_test_user(None).await;
+        let parent_folder = insert_test_folder(Some(&user), None).await;
+        let input = FolderInput {
+            parent_folder_id: Some(parent_folder.id),
+            name: fake_name(),
+            visibility: FileVisibility::Private,
+        };
+
+        let result = insert_folder(&user, &input).await;
+
+        assert!(result.is_ok());
+
+        let folder = result.unwrap();
+
+        assert_eq!(folder.user_id, user.id);
+        assert_eq!(folder.parent_folder_id, input.parent_folder_id);
+        assert_eq!(folder.name, input.name);
+    }
+
+    #[tokio::test]
+    async fn should_not_insert_a_folder_with_existent_name() {
+        let user = insert_test_user(None).await;
+        let folder = insert_test_folder(Some(&user), None).await;
+        let input = FolderInput {
+            parent_folder_id: None,
+            name: folder.name.to_string(),
+            visibility: FileVisibility::Private,
+        };
+
+        let result = insert_folder(&user, &input).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn should_not_insert_a_folder_with_invalid_parent_folder() {
+        let invalid_parent_folder = insert_test_folder(None, None).await;
+        let user = insert_test_user(None).await;
+        let input = FolderInput {
+            parent_folder_id: Some(invalid_parent_folder.id),
+            name: fake_name(),
+            visibility: FileVisibility::Private,
+        };
+
+        let result = insert_folder(&user, &input).await;
+
+        assert!(result.is_err());
     }
 
     #[tokio::test]

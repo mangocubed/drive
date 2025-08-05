@@ -101,7 +101,7 @@ async fn main() {
                     println!("User created successfully.");
                 }
                 Err(err) => {
-                    println!("Failed to create user.\n{}", err);
+                    println!("Failed to create user.\n{err}");
                 }
             }
         }

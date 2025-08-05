@@ -1,3 +1,4 @@
+pub mod enums;
 pub mod inputs;
 
 #[cfg(feature = "server")]
