@@ -9,6 +9,7 @@
 
     --color-base-100: #09090b;
     --color-primary: #ff4c00;
+    --radius-field: 1rem;
 }
 
 @plugin "daisyui/theme" {
@@ -18,14 +19,23 @@
     color-scheme: light;
 
     --color-primary: #ff4c00;
+    --radius-field: 1rem;
 }
 
 @utility btn {
-    @apply uppercase rounded-2xl;
+    @apply uppercase;
 }
 
 @utility fieldset {
     @apply w-full;
+}
+
+@utility file-input {
+    @apply border-white w-full;
+
+    @variant focus {
+        outline: none;
+    }
 }
 
 @utility form {
@@ -41,7 +51,7 @@
 }
 
 @utility input {
-    @apply border-white w-full rounded-2xl;
+    @apply border-white w-full;
 
     @variant focus {
         outline: none;
@@ -57,11 +67,11 @@
 }
 
 @utility modal-box {
-    @apply bg-base-200;
+    @apply bg-[#23232b];
 }
 
 @utility select {
-    @apply border-white w-full rounded-2xl;
+    @apply border-white w-full;
 
     @variant focus {
         outline: none;
@@ -69,7 +79,7 @@
 }
 
 @utility textarea {
-    @apply border-white w-full rounded-2xl;
+    @apply border-white w-full;
 
     @variant focus {
         outline: none;

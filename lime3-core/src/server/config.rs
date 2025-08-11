@@ -2,6 +2,7 @@ use std::sync::LazyLock;
 
 use figment::Figment;
 use figment::providers::{Env, Serialized};
+use image::imageops::FilterType;
 use serde::{Deserialize, Serialize};
 
 fn extract_from_env<'a, T>(prefix: &str) -> T
@@ -14,11 +15,12 @@ where
         .unwrap()
 }
 
-pub static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_from_env("DATABASE_"));
+pub(crate) static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_from_env("DATABASE_"));
 pub static SESSION_CONFIG: LazyLock<SessionConfig> = LazyLock::new(|| extract_from_env("SESSION_"));
+pub(crate) static STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| extract_from_env("STORAGE_"));
 
 #[derive(Deserialize, Serialize)]
-pub struct DatabaseConfig {
+pub(crate) struct DatabaseConfig {
     pub max_connections: u8,
     pub url: String,
 }
@@ -53,6 +55,36 @@ impl Default for SessionConfig {
             name: "_lime3_session".to_owned(),
             redis_url: format!("redis://127.0.0.1:6379/{db_number}"),
             secure: false,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+pub(crate) struct StorageConfig {
+    image_ops_filter_type: String,
+    pub path: String,
+}
+
+impl Default for StorageConfig {
+    fn default() -> Self {
+        Self {
+            image_ops_filter_type: "CatmullRom".to_owned(),
+            #[cfg(not(test))]
+            path: "./storage".to_owned(),
+            #[cfg(test)]
+            path: "./storage/tests".to_owned(),
+        }
+    }
+}
+
+impl StorageConfig {
+    pub(crate) fn image_ops_filter_type(&self) -> FilterType {
+        match self.image_ops_filter_type.as_str() {
+            "CatmullRom" => FilterType::CatmullRom,
+            "Gaussian" => FilterType::Gaussian,
+            "Triangle" => FilterType::Triangle,
+            "Lanczos3" => FilterType::Lanczos3,
+            _ => FilterType::Nearest,
         }
     }
 }

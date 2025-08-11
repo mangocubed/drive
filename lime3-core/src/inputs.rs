@@ -7,7 +7,7 @@ use validator::{Validate, ValidationError};
 use crate::enums::FileVisibility;
 
 #[cfg(feature = "server")]
-use crate::server::constants::{ERROR_IS_INVALID, REGEX_FOLDER_NAME, REGEX_USERNAME};
+use crate::server::constants::{ERROR_IS_INVALID, REGEX_FILE_NAME, REGEX_USERNAME};
 
 #[cfg(feature = "server")]
 fn validate_birthdate(value: &str) -> Result<(), ValidationError> {
@@ -46,10 +46,21 @@ fn validate_username(value: &str) -> Result<(), ValidationError> {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(feature = "server", derive(Validate))]
+pub struct FileInput {
+    pub parent_folder_id: Option<Uuid>,
+    #[cfg_attr(feature = "server", validate(length(min = 1, max = 256, message = "Can't be blank"),
+        regex(path = *REGEX_FILE_NAME, message = "Is invalid"),
+    ))]
+    pub name: String,
+    pub content: Vec<u8>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "server", derive(Validate))]
 pub struct FolderInput {
     pub parent_folder_id: Option<Uuid>,
     #[cfg_attr(feature = "server", validate(length(min = 1, max = 256, message = "Can't be blank"),
-        regex(path = *REGEX_FOLDER_NAME, message = "Is invalid"),
+        regex(path = *REGEX_FILE_NAME, message = "Is invalid"),
     ))]
     pub name: String,
     pub visibility: FileVisibility,

@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::components::{FolderManager, PageTitle};
+use crate::components::{FileManager, PageTitle};
 
 #[component]
 pub fn HomePage() -> Element {
@@ -9,6 +9,6 @@ pub fn HomePage() -> Element {
 
         h1 { class: "h1", "Home" }
 
-        FolderManager {}
+        FileManager {}
     }
 }

@@ -11,14 +11,14 @@ test("should create a folder", async ({ page }) => {
 
     await expect(page.locator("h2", { hasText: "New folder" })).toBeVisible();
 
-    await page.getByLabel("Name").fill(folderName);
+    await page.locator("#name").fill(folderName);
     await page.getByRole("button", { name: "Submit" }).click();
 
     await expect(page.getByText("Folder created successfully")).toBeVisible();
 
     await page.getByRole("button", { name: "Ok" }).click();
 
-    await expect(page.getByText(folderName)).toBeVisible()
+    await expect(page.getByText(folderName)).toBeVisible();
 });
 
 test("should fail to create a folder", async ({ page }) => {

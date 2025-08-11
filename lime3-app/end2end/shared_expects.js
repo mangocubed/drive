@@ -27,8 +27,8 @@ export async function loginAndGoToHome(page) {
 
     await expect(page.locator("h1", { hasText: "Login" })).toBeVisible();
 
-    await page.getByLabel("Username or email").fill(username);
-    await page.getByLabel("Password").fill(password);
+    await page.locator("#username_or_email").fill(username);
+    await page.locator("#password").fill(password);
 
     await page.getByRole("button", { name: "Submit" }).click();
 

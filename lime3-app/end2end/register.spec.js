@@ -27,12 +27,12 @@ test("should register a new user", async ({ page }) => {
 
     await expect(page.locator("h1", { hasText: "Register" })).toBeVisible();
 
-    await page.getByLabel("Username").fill(username);
-    await page.getByLabel("Email").fill(faker.internet.email());
-    await page.getByLabel("Password").fill(faker.internet.password());
-    await page.getByLabel("Full name").fill(faker.person.fullName());
-    await page.getByLabel("Birthdate").fill(faker.date.birthdate().toISOString().split("T")[0]);
-    await page.getByLabel("Country").selectOption(faker.location.countryCode());
+    await page.locator("#username").fill(username);
+    await page.locator("#email").fill(faker.internet.email());
+    await page.locator("#password").fill(faker.internet.password());
+    await page.locator("#full_name").fill(faker.person.fullName());
+    await page.locator("#birthdate").fill(faker.date.birthdate().toISOString().split("T")[0]);
+    await page.locator("#country_alpha2").selectOption(faker.location.countryCode());
 
     await page.getByRole("button", { name: "Submit" }).click();
 
