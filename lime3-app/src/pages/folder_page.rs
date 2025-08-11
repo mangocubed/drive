@@ -1,12 +1,13 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::components::{FolderManager, PageTitle, RequireLogin};
+use crate::components::{FileManager, PageTitle, RequireLogin};
 use crate::routes::Routes;
 use crate::server_functions::get_folder;
 
 #[component]
 pub fn FolderPage(id: ReadOnlySignal<Uuid>) -> Element {
+    let parent_folder_id = use_memo(move || Some(id()));
     let folder = use_server_future(move || async move { get_folder(id()).await.ok().flatten() })?;
     let page_title = use_memo(move || {
         if let Some(Some(folder)) = &*folder.read() {
@@ -48,7 +49,7 @@ pub fn FolderPage(id: ReadOnlySignal<Uuid>) -> Element {
                     }
                 }
 
-                FolderManager { min_visibility: folder.visibility, parent_folder_id: id }
+                FileManager { min_visibility: folder.visibility, parent_folder_id }
             }
         }
     }

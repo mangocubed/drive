@@ -1,5 +1,12 @@
 use dioxus::prelude::*;
 
+#[cfg(feature = "server")]
+use axum::extract::{Path, Query};
+#[cfg(feature = "server")]
+use axum::response::IntoResponse;
+#[cfg(feature = "server")]
+use uuid::Uuid;
+
 mod components;
 mod forms;
 mod icons;
@@ -20,8 +27,17 @@ const FAVICON_ICO: Asset = asset!("assets/favicon.ico");
 const STYLE_CSS: Asset = asset!("assets/style.css");
 
 #[cfg(feature = "server")]
+#[derive(serde::Deserialize)]
+pub struct FileQuery {
+    pub width: Option<u16>,
+    pub height: Option<u16>,
+    pub fill: Option<bool>,
+}
+
+#[cfg(feature = "server")]
 #[tokio::main]
 async fn main() {
+    use axum::routing::get;
     use cookie::{Key, SameSite};
     use fred::prelude::{ClientLike, Config, Pool};
     use time::Duration;
@@ -57,6 +73,7 @@ async fn main() {
         .with_secure(SESSION_CONFIG.secure);
 
     let app = axum::Router::new()
+        .route("/storage/files/{id}", get(get_storage_file))
         .serve_dioxus_application(ServeConfig::new().unwrap(), App)
         .layer(session_layer);
 
@@ -71,6 +88,38 @@ async fn main() {
 #[cfg(not(feature = "server"))]
 fn main() {
     dioxus::launch(App);
+}
+
+#[cfg(feature = "server")]
+async fn get_storage_file(Path(id): Path<Uuid>, Query(query): Query<FileQuery>) -> impl IntoResponse {
+    use axum::body::Body;
+    use axum::http::StatusCode;
+    use axum::http::header::{CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE};
+
+    let file = lime3_core::server::commands::get_file_by_id(id, None)
+        .await
+        .map_err(|_| (StatusCode::NOT_FOUND, "FILE NOT FOUND"))?;
+
+    let Some(content) = file.read_variant(query.width, query.height, query.fill) else {
+        return Err((StatusCode::FORBIDDEN, "FORBIDDEN"));
+    };
+
+    let content_length = content.len();
+    let body = Body::from(content);
+
+    let headers = [
+        (CONTENT_TYPE, file.media_type.to_string()),
+        (CONTENT_LENGTH, content_length.to_string()),
+        (
+            CONTENT_DISPOSITION,
+            format!(
+                "inline; filename=\"{}\"",
+                file.variant_filename(query.width, query.height, query.fill)
+            ),
+        ),
+    ];
+
+    Ok((headers, body))
 }
 
 pub fn use_current_user() -> Resource<Option<UserPresenter>> {

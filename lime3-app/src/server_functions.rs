@@ -7,7 +7,7 @@ use tower_sessions::Session;
 #[cfg(feature = "server")]
 use validator::ValidationErrors;
 
-use lime3_core::inputs::{FolderInput, LoginInput, RegisterInput};
+use lime3_core::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
 
 #[cfg(feature = "server")]
 use lime3_core::server::commands::*;
@@ -15,7 +15,7 @@ use lime3_core::server::commands::*;
 use lime3_core::server::models::{User, UserSession};
 
 use crate::forms::FormStatus;
-use crate::presenters::{FolderPresenter, UserPresenter};
+use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, UserPresenter};
 use crate::routes::Routes;
 
 #[cfg(feature = "server")]
@@ -140,6 +140,17 @@ pub async fn attempt_to_register(input: RegisterInput) -> ServFnResult<FormStatu
     }
 }
 
+#[server]
+pub async fn attempt_to_upload_file(input: FileInput) -> ServFnResult<bool> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+
+    let result = insert_file(&user, &input).await;
+
+    Ok(result.is_ok())
+}
+
 #[cfg(feature = "server")]
 async fn extract_session() -> ServFnResult<Session> {
     extract()
@@ -164,7 +175,7 @@ async fn extract_user_session() -> ServFnResult<Option<UserSession>> {
 }
 
 #[server]
-pub async fn get_all_folders(parent_folder_id: Option<Uuid>) -> ServFnResult<Vec<FolderPresenter>> {
+pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResult<Vec<FolderItemPresenter>> {
     require_login().await?;
 
     let user = extract_user().await?.unwrap();
@@ -177,9 +188,9 @@ pub async fn get_all_folders(parent_folder_id: Option<Uuid>) -> ServFnResult<Vec
     } else {
         None
     };
-    let folders = get_all_folders_by_user(&user, parent_folder.as_ref()).await;
+    let folder_items = get_all_folder_items_by_user(&user, parent_folder.as_ref()).await;
 
-    Ok(futures::future::join_all(folders.iter().map(|folder| folder.async_into())).await)
+    Ok(futures::future::join_all(folder_items.iter().map(|folder_item| folder_item.async_into())).await)
 }
 
 #[server]
@@ -189,6 +200,21 @@ pub async fn get_current_user() -> ServFnResult<Option<UserPresenter>> {
     };
 
     Ok(Some(user.into()))
+}
+
+#[server]
+pub async fn get_file(id: Uuid) -> ServFnResult<Option<FilePresenter>> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+
+    let result = get_file_by_id(id, Some(&user)).await;
+
+    Ok(if let Ok(file) = result {
+        Some(file.async_into().await)
+    } else {
+        None
+    })
 }
 
 #[server]

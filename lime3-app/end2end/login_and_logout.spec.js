@@ -33,8 +33,8 @@ test("should fail to login a user", async ({ page }) => {
 
     await expect(page.locator("h1", { hasText: "Login" })).toBeVisible();
 
-    await page.getByLabel("Username or email").fill(faker.internet.username());
-    await page.getByLabel("Password").fill(faker.internet.password());
+    await page.locator("#username_or_email").fill(faker.internet.username());
+    await page.locator("#password").fill(faker.internet.password());
 
     await page.getByRole("button", { name: "Submit" }).click();
 

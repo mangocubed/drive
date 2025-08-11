@@ -112,8 +112,8 @@ pub fn Form(children: Element, #[props(optional)] on_success: Callback) -> Eleme
     rsx! {
         form {
             class: "form",
-            autocomplete: "off",
-            novalidate: "true",
+            autocomplete: false,
+            novalidate: true,
             onsubmit: move |event| {
                 event.prevent_default();
 
@@ -148,14 +148,14 @@ pub fn Form(children: Element, #[props(optional)] on_success: Callback) -> Eleme
 }
 
 #[component]
-pub fn FormField(children: Element, error: Memo<Option<String>>, id: String, label: String) -> Element {
+pub fn FormField(children: Element, error: Memo<Option<String>>, label: String) -> Element {
     rsx! {
         fieldset { class: "fieldset",
-            label { class: "fieldset-label empty:hidden", r#for: id, {label} }
+            legend { class: "fieldset-legend empty:hidden", {label} }
 
             {children}
 
-            div { class: "fieldset-label text-error empty:hidden", {error} }
+            div { class: "label text-error empty:hidden", {error} }
         }
     }
 }
@@ -192,7 +192,7 @@ pub fn PasswordField(id: String, label: String, #[props(default = 256)] max_leng
     let mut input_type = use_signal(|| "password");
 
     rsx! {
-        FormField { error, id: id.clone(), label,
+        FormField { error, label,
             div {
                 class: "input flex items-center gap-2 pr-0",
                 class: if error().is_some() { "input-error" },
@@ -232,7 +232,7 @@ pub fn SelectField(id: String, label: String, name: String, children: Element) -
     let error = use_error_memo(id.clone());
 
     rsx! {
-        FormField { error, id: id.clone(), label,
+        FormField { error, label,
             select {
                 class: "select",
                 class: if error().is_some() { "select-error" },
@@ -255,7 +255,7 @@ pub fn TextField(
     let error = use_error_memo(id.clone());
 
     rsx! {
-        FormField { error, id: id.clone(), label,
+        FormField { error, label,
             input {
                 class: "input",
                 class: if error().is_some() { "input-error" },

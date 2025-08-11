@@ -2,7 +2,7 @@
 
 Cloud storage & digital distribution platform.
 
-### Environment variables
+## Environment variables
 
 | Name                     | Type    | Default                                                          |
 | ------------------------ | ------- | ---------------------------------------------------------------- |
@@ -13,3 +13,4 @@ Cloud storage & digital distribution platform.
 | SESSION_NAME             | String  | _lime3_session                                                   |
 | SESSION_REDIS_URL        | String  | redis://127.0.0.1:6379/0                                         |
 | SESSION_SECURE           | Boolean | false                                                            |
+| STORAGE_PATH             | String  | ./storage                                                        |

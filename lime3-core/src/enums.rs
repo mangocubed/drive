@@ -3,7 +3,7 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-#[cfg_attr(feature = "server", derive(sqlx::Type))]
+#[cfg_attr(feature = "server", derive(sqlx::Type, strum::EnumIter))]
 #[cfg_attr(feature = "server", sqlx(type_name = "file_visibility"))]
 #[cfg_attr(feature = "server", sqlx(rename_all = "lowercase"))]
 #[serde(rename_all = "lowercase")]

@@ -1,21 +1,13 @@
 use dioxus::cli_config::app_title;
 use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
-use uuid::Uuid;
 
-use lime3_core::enums::FileVisibility;
-
-use crate::forms::{Form, FormSuccessModal, SelectField, TextField, use_form_provider};
-use crate::icons::{FolderOutline, FolderPlusOutline};
 use crate::routes::Routes;
-use crate::server_functions::{attempt_to_create_folder, get_all_folders, is_logged_in};
+use crate::server_functions::is_logged_in;
 
-const FILE_VISIBILITY_OPTIONS: [(&str, FileVisibility); 4] = [
-    ("Private", FileVisibility::Private),
-    ("Only followers", FileVisibility::Followers),
-    ("Only users", FileVisibility::Users),
-    ("Public", FileVisibility::Public),
-];
+mod file_manager;
+
+pub use file_manager::FileManager;
 
 #[component]
 pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Callback) -> Element {
@@ -40,50 +32,6 @@ pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Ca
                         on_accept.call(());
                     },
                     "Accept"
-                }
-            }
-        }
-    }
-}
-
-#[component]
-pub fn FolderManager(
-    #[props(default = FileVisibility::Private)] min_visibility: FileVisibility,
-    parent_folder_id: Option<ReadOnlySignal<Uuid>>,
-) -> Element {
-    let mut show_new_folder_modal = use_signal(|| false);
-    let mut all_folders = use_server_future(move || get_all_folders(parent_folder_id.map(|id| id())))?;
-
-    rsx! {
-        LoggedIn {
-            button {
-                class: "btn btn-outline",
-                onclick: move |_| show_new_folder_modal.set(true),
-                FolderPlusOutline {}
-                "New folder"
-            }
-
-            NewFolderModal {
-                is_open: show_new_folder_modal,
-                min_visibility,
-                on_close: move |_| all_folders.restart(),
-                parent_folder_id,
-            }
-
-            if let Some(Ok(folders)) = &*all_folders.read() {
-                if !folders.is_empty() {
-                    div { class: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-6",
-                        for folder in folders {
-                            Link {
-                                class: "btn flex-col gap-2 normal-case p-2 h-auto",
-                                to: Routes::folder(folder.id),
-                                FolderOutline { class: "size-[90%]" }
-                                {folder.name.clone()}
-                            }
-                        }
-                    }
-                } else {
-                    div { class: "text-center mt-6", "This folder is empty" }
                 }
             }
         }
@@ -128,56 +76,6 @@ pub fn Modal(
 
             if is_closable {
                 div { class: "modal-backdrop", onclick: on_close }
-            }
-        }
-    }
-}
-
-#[component]
-pub fn NewFolderModal(
-    mut is_open: Signal<bool>,
-    #[props(default = FileVisibility::Private)] min_visibility: FileVisibility,
-    on_close: Callback,
-    parent_folder_id: Option<ReadOnlySignal<Uuid>>,
-) -> Element {
-    use_form_provider(attempt_to_create_folder);
-
-    rsx! {
-        FormSuccessModal { on_close }
-
-        Modal { is_open,
-            h2 { class: "h2", "New folder" }
-
-            Form {
-                on_success: move |_| {
-                    *is_open.write() = false;
-                },
-                if let Some(parent_folder_id) = parent_folder_id {
-                    input {
-                        name: "parent_folder_id",
-                        value: parent_folder_id().to_string(),
-                        r#type: "hidden",
-                    }
-                }
-
-                TextField { id: "name", label: "Name", name: "name" }
-
-                SelectField {
-                    id: "visibility",
-                    label: "Visibility",
-                    name: "visibility",
-                    for (label , value) in FILE_VISIBILITY_OPTIONS
-                        .iter()
-                        .skip(
-                            FILE_VISIBILITY_OPTIONS
-                                .iter()
-                                .position(|(_, value)| *value == min_visibility)
-                                .unwrap_or_default(),
-                        )
-                    {
-                        option { value: value.to_string(), {label} }
-                    }
-                }
             }
         }
     }

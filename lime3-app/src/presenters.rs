@@ -6,11 +6,83 @@ use lime3_core::enums::FileVisibility;
 #[cfg(feature = "server")]
 use lime3_core::server::commands::get_folder_by_id;
 #[cfg(feature = "server")]
-use lime3_core::server::models::{Folder, User};
+use lime3_core::server::models::{File, Folder, FolderItem, User};
 
 #[cfg(feature = "server")]
 pub trait AsyncInto<T> {
     fn async_into(&self) -> impl std::future::Future<Output = T>;
+}
+
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
+pub struct FilePresenter {
+    pub id: Uuid,
+    pub name: String,
+    pub visibility: FileVisibility,
+    pub parent_folders: Vec<(Uuid, String)>,
+    pub url: String,
+    pub preview_url: String,
+}
+
+#[cfg(feature = "server")]
+impl AsyncInto<FilePresenter> for File<'_> {
+    async fn async_into(&self) -> FilePresenter {
+        let mut parent_folders = Vec::new();
+        let mut parent_folder_id = self.parent_folder_id;
+
+        while let Some(id) = parent_folder_id {
+            let parent_folder = get_folder_by_id(id, None).await.unwrap();
+
+            parent_folders.push((parent_folder.id, parent_folder.name.to_string()));
+
+            parent_folder_id = parent_folder.parent_folder_id;
+        }
+
+        parent_folders.reverse();
+
+        FilePresenter {
+            id: self.id,
+            name: self.name.to_string(),
+            visibility: self.visibility,
+            parent_folders,
+            url: self.url(),
+            preview_url: self.preview_url(),
+        }
+    }
+}
+
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
+pub struct FolderItemPresenter {
+    pub id: Uuid,
+    pub is_file: bool,
+    pub name: String,
+    pub visibility: FileVisibility,
+    pub preview_url: Option<String>,
+}
+
+#[cfg(feature = "server")]
+impl AsyncInto<FolderItemPresenter> for FolderItem<'_> {
+    async fn async_into(&self) -> FolderItemPresenter {
+        let mut parent_folders = Vec::new();
+        let mut parent_folder_id = self.parent_folder_id;
+
+        while let Some(id) = parent_folder_id {
+            let parent_folder = get_folder_by_id(id, None).await.unwrap();
+
+            parent_folders.push((parent_folder.id, parent_folder.name.to_string()));
+
+            parent_folder_id = parent_folder.parent_folder_id;
+        }
+
+        parent_folders.reverse();
+
+        FolderItemPresenter {
+            id: self.id,
+            is_file: self.is_file,
+            name: self.name.to_string(),
+            visibility: self.visibility,
+            preview_url: self.preview_url(),
+        }
+    }
 }
 
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
