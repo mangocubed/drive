@@ -7,7 +7,7 @@ edition.workspace = true
 anyhow = { version = "1.0.99", optional = true }
 axum = { version = "0.8.4", optional = true }
 cookie = { version = "0.18.1", features = ["private"], optional = true }
-dioxus = { version = "0.7.0-alpha.3", features = ["router", "fullstack"] }
+dioxus = { version = "0.7.0-rc.0", features = ["router", "fullstack"] }
 fred = { version = "10.1.0", optional = true }
 futures = { version = "0.3.31", optional = true }
 rust_iso3166 = { workspace = true }
