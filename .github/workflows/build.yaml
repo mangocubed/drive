@@ -21,7 +21,7 @@ jobs:
                     - 5432:5432
                 options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - uses: ./.github/actions/setup-dioxus
             - name: Build for web
               run: dx build --package lime3-app --platform web --release
@@ -43,13 +43,13 @@ jobs:
                     - 5432:5432
                 options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - uses: ./.github/actions/setup-dioxus
             - run: cargo build --bin lime3-cli
 
     build_stylesheet:
         runs-on: ubuntu-24.04
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - uses: ./.github/actions/setup-node
             - run: npm run build
