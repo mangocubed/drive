@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-anyhow = { version = "1.0.98", optional = true }
+anyhow = { version = "1.0.99", optional = true }
 axum = { version = "0.8.4", optional = true }
 cookie = { version = "0.18.1", features = ["private"], optional = true }
 dioxus = { version = "0.7.0-alpha.3", features = ["router", "fullstack"] }
