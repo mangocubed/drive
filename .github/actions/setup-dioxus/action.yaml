@@ -23,7 +23,7 @@ runs:
               execute_install_scripts: true
         - name: Install Dioxus CLI & SQLx CLI
           shell: bash
-          run: cargo binstall -y dioxus-cli@0.7.0-alpha.3 sqlx-cli@0.8.6
+          run: cargo binstall -y dioxus-cli@0.7.0-rc.0 sqlx-cli@0.8.6
         - name: Add additional RustUp targets
           shell: bash
           run: rustup target add wasm32-unknown-unknown aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android

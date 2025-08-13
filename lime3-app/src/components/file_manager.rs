@@ -151,7 +151,7 @@ fn NewFolderModal(
                     label: "Visibility",
                     name: "visibility",
                     for (label , value) in FILE_VISIBILITY_OPTIONS.iter().skip_while(|(_, value)| *value != min_visibility) {
-                        option { value: value.to_string(), {label} }
+                        option { value: value.to_string(), {*label} }
                     }
                 }
             }
