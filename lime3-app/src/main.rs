@@ -10,7 +10,7 @@ use uuid::Uuid;
 mod components;
 mod forms;
 mod icons;
-mod layout;
+mod layouts;
 mod pages;
 mod presenters;
 mod routes;

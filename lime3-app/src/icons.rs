@@ -94,6 +94,25 @@ pub fn ChevronDownMini() -> Element {
 }
 
 #[component]
+pub fn CloudOutline() -> Element {
+    rsx! {
+        svg {
+            class: "size-6",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "1.5",
+            view_box: "0 0 24 24",
+            xmlns: "http://www.w3.org/2000/svg",
+            path {
+                d: "M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+            }
+        }
+    }
+}
+
+#[component]
 pub fn DocumentOutline(#[props(default = "size-6".to_owned())] class: String) -> Element {
     rsx! {
         svg {
@@ -198,6 +217,25 @@ pub fn FolderPlusOutline() -> Element {
             xmlns: "http://www.w3.org/2000/svg",
             path {
                 d: "M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z",
+                stroke_linecap: "round",
+                stroke_linejoin: "round",
+            }
+        }
+    }
+}
+
+#[component]
+pub fn HomeOutline() -> Element {
+    rsx! {
+        svg {
+            class: "size-6",
+            fill: "none",
+            stroke: "currentColor",
+            stroke_width: "1.5",
+            view_box: "0 0 24 24",
+            xmlns: "http://www.w3.org/2000/svg",
+            path {
+                d: "m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25",
                 stroke_linecap: "round",
                 stroke_linejoin: "round",
             }

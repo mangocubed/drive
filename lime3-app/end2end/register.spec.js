@@ -3,14 +3,9 @@ import { faker } from "@faker-js/faker/locale/en";
 import { waitForLoadingOverlay } from "./shared_expects";
 
 test("should be a link to register page", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/login");
 
     await waitForLoadingOverlay(page);
-
-    page.getByRole("link", { name: "Login" }).click();
-
-    await expect(page).toHaveURL("/login");
-    await expect(page.locator("h1", { hasText: "Login" })).toBeVisible();
 
     page.getByRole("link", { name: "I don't have an account" }).click();
 

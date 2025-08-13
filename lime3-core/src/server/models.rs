@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use bytesize::ByteSize;
 use chrono::{DateTime, NaiveDate, Utc};
 use file_format::FileFormat;
 use image::metadata::Orientation;
@@ -8,8 +9,9 @@ use image::{DynamicImage, ImageDecoder, ImageReader};
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
+use crate::server::commands::get_used_storage_by_user;
 
-use super::config::STORAGE_CONFIG;
+use super::config::{MEMBERSHIPS_CONFIG, MembershipConfig, STORAGE_CONFIG};
 use super::constants::ALLOWED_FILE_FORMATS;
 
 fn verify_password(encrypted_password: &str, password: &str) -> bool {
@@ -172,12 +174,18 @@ pub struct User<'a> {
     pub birthdate: NaiveDate,
     pub language_code: String,
     pub country_alpha2: String,
+    pub membership_code: Cow<'a, str>,
+    pub has_annual_billing: bool,
     pub disabled_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl User<'_> {
+    pub async fn available_storage(&self) -> ByteSize {
+        self.membership().total_storage - self.used_storage().await
+    }
+
     pub fn initials(&self) -> String {
         self.display_name
             .split_whitespace()
@@ -189,6 +197,14 @@ impl User<'_> {
     #[allow(dead_code)]
     pub fn is_disabled(&self) -> bool {
         self.disabled_at.is_some()
+    }
+
+    pub fn membership(&self) -> &MembershipConfig {
+        MEMBERSHIPS_CONFIG.get(&self.membership_code).unwrap()
+    }
+
+    pub async fn used_storage(&self) -> ByteSize {
+        get_used_storage_by_user(self).await
     }
 
     pub fn verify_password(&self, password: &str) -> bool {

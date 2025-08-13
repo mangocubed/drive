@@ -199,7 +199,7 @@ pub async fn get_current_user() -> ServFnResult<Option<UserPresenter>> {
         return Ok(None);
     };
 
-    Ok(Some(user.into()))
+    Ok(Some(user.async_into().await))
 }
 
 #[server]

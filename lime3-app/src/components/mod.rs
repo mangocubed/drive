@@ -2,7 +2,6 @@ use dioxus::cli_config::app_title;
 use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
 
-use crate::routes::Routes;
 use crate::server_functions::is_logged_in;
 
 mod file_manager;
@@ -113,41 +112,5 @@ pub fn PageTitle(children: Element) -> Element {
 
     rsx! {
         document::Title { "{page_title} | {app_title}" }
-    }
-}
-
-#[component]
-pub fn RequireLogin(children: Element) -> Element {
-    let is_logged_in = use_server_future(is_logged_in)?;
-    let navigator = use_navigator();
-
-    use_effect(move || {
-        if let Some(Ok(false)) = is_logged_in() {
-            navigator.push(Routes::login());
-        }
-    });
-
-    rsx! {
-        if let Some(Ok(true)) = is_logged_in() {
-            {children}
-        }
-    }
-}
-
-#[component]
-pub fn RequireNoLogin(children: Element) -> Element {
-    let is_logged_in = use_server_future(is_logged_in)?;
-    let navigator = use_navigator();
-
-    use_effect(move || {
-        if let Some(Ok(true)) = is_logged_in() {
-            navigator.push(Routes::home());
-        }
-    });
-
-    rsx! {
-        if let Some(Ok(false)) = is_logged_in() {
-            {children}
-        }
     }
 }

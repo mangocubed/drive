@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::components::{PageTitle, RequireLogin};
+use crate::components::PageTitle;
 use crate::icons::ArrowDownTrayOutline;
 use crate::routes::Routes;
 use crate::server_functions::get_file;
@@ -30,40 +30,38 @@ pub fn FilePage(id: ReadOnlySignal<Uuid>) -> Element {
         }
     });
     rsx! {
-        RequireLogin {
-            if let Some(Some(file)) = &*file.read() {
-                PageTitle { {page_title()} }
+        if let Some(Some(file)) = &*file.read() {
+            PageTitle { {page_title()} }
 
-                h1 { class: "h1 breadcrumbs",
-                    ul {
+            h1 { class: "h1 breadcrumbs",
+                ul {
+                    li {
+                        Link { to: Routes::home(), "Home" }
+                    }
+                    for (id , name) in file.parent_folders.clone() {
                         li {
-                            Link { to: Routes::home(), "Home" }
+                            Link { to: Routes::folder(id), {name.clone()} }
                         }
-                        for (id , name) in file.parent_folders.clone() {
-                            li {
-                                Link { to: Routes::folder(id), {name.clone()} }
-                            }
-                        }
-                        li { {file.name.clone()} }
                     }
+                    li { {file.name.clone()} }
                 }
+            }
 
-                div { class: "my-4",
-                    img {
-                        class: "m-auto max-h-[calc(100vh-2rem)]",
-                        src: file.preview_url.clone(),
-                        alt: file.name.clone(),
-                    }
+            div { class: "my-4",
+                img {
+                    class: "m-auto max-h-[calc(100vh-2rem)]",
+                    src: file.preview_url.clone(),
+                    alt: file.name.clone(),
                 }
+            }
 
-                div { class: "flex justify-center",
-                    a {
-                        class: "btn btn-outline m-auto",
-                        download: file.name.clone(),
-                        href: file.url.clone(),
-                        ArrowDownTrayOutline {}
-                        "Download"
-                    }
+            div { class: "flex justify-center",
+                a {
+                    class: "btn btn-outline m-auto",
+                    download: file.name.clone(),
+                    href: file.url.clone(),
+                    ArrowDownTrayOutline {}
+                    "Download"
                 }
             }
         }

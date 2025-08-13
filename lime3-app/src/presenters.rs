@@ -124,16 +124,27 @@ pub struct UserPresenter {
     pub username: String,
     pub display_name: String,
     pub initials: String,
+    pub total_storage_bytes: u64,
+    pub used_storage_bytes: u64,
+    pub total_storage: String,
+    pub used_storage: String,
 }
 
 #[cfg(feature = "server")]
-impl From<User<'_>> for UserPresenter {
-    fn from(user: User) -> Self {
-        Self {
-            id: user.id,
-            username: user.username.to_string(),
-            display_name: user.display_name.to_string(),
-            initials: user.initials(),
+impl AsyncInto<UserPresenter> for User<'_> {
+    async fn async_into(&self) -> UserPresenter {
+        let total_storage = self.membership().total_storage;
+        let used_storage = self.used_storage().await;
+
+        UserPresenter {
+            id: self.id,
+            username: self.username.to_string(),
+            display_name: self.display_name.to_string(),
+            initials: self.initials(),
+            total_storage_bytes: total_storage.as_u64(),
+            used_storage_bytes: used_storage.as_u64(),
+            total_storage: total_storage.to_string(),
+            used_storage: used_storage.to_string(),
         }
     }
 }

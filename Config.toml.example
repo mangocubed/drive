@@ -1,0 +1,13 @@
+[memberships.free]
+name = "Free"
+description = "A great option for newbies"
+max_size_per_file = "100 MiB"
+total_storage = "1 GiB"
+is_restricted = false
+
+# [memberships.admin]
+# name = "Admin"
+# description = "Only for admin users"
+# max_size_per_file = "1 GiB"
+# total_storage = "10 GiB"
+# is_restricted = true

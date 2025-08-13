@@ -12,9 +12,9 @@ use fake::faker::name::en::Name;
 use rand::rng;
 
 use crate::enums::FileVisibility;
-use crate::inputs::{FolderInput, RegisterInput};
-use crate::server::commands::{insert_folder, insert_user};
-use crate::server::models::{Folder, User};
+use crate::inputs::{FileInput, FolderInput, RegisterInput};
+use crate::server::commands::{insert_file, insert_folder, insert_user};
+use crate::server::models::{File, Folder, User};
 
 fn unique_fake<T, F>(prefix: &str, fake_fn: F) -> T
 where
@@ -95,6 +95,39 @@ pub fn fake_name() -> String {
         name.truncate(256);
         name
     })
+}
+
+pub async fn insert_test_file<'a>(user: Option<&User<'_>>) -> File<'a> {
+    let user = if let Some(user) = user {
+        user
+    } else {
+        &insert_test_user(None).await
+    };
+
+    let input = FileInput {
+        parent_folder_id: None,
+        name: fake_name() + ".jpg",
+        content: vec![0xFF, 0xD8, 0xFF],
+    };
+
+    insert_file(&user, &input).await.expect("Could not insert folder")
+}
+
+pub async fn insert_test_files<'a>(count: u8, user: Option<&User<'_>>) -> Vec<File<'a>> {
+    let user = if let Some(user) = user {
+        user
+    } else {
+        &insert_test_user(None).await
+    };
+
+    let mut files = Vec::new();
+
+    for _ in 0..count {
+        let file = insert_test_file(Some(user)).await;
+        files.push(file);
+    }
+
+    files
 }
 
 pub async fn insert_test_folder<'a>(user: Option<&User<'_>>, parent_folder: Option<&Folder<'_>>) -> Folder<'a> {

@@ -2,12 +2,10 @@ import { test, expect } from "@playwright/test";
 import { faker } from "@faker-js/faker/locale/en";
 import { loginAndGoToHome, waitForLoadingOverlay } from "./shared_expects";
 
-test("should be a link to login page", async ({ page }) => {
+test("should redirect to login page when is not logged in", async ({ page }) => {
     await page.goto("/");
 
     await waitForLoadingOverlay(page);
-
-    page.getByRole("link", { name: "Login" }).click();
 
     await expect(page).toHaveURL("/login");
     await expect(page.locator("h1", { hasText: "Login" })).toBeVisible();
