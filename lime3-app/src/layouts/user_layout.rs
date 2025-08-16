@@ -86,24 +86,30 @@ pub fn UserLayout() -> Element {
                         }
                     }
 
-                    div { class: "mt-auto p-4 max-md:tooltip max-md:tooltip-right",
-                        div { class: "flex gap-2 text-sm items-center max-md:justify-center",
-                            CloudOutline {}
-                            span { class: "max-md:hidden", "Storage" }
-                        }
+                    ul { class: "menu md:w-56 mt-auto",
+                        li {
+                            Link {
+                                class: "max-md:tooltip max-md:tooltip-right grid-cols-1 grid-rows-2 gap-0",
+                                to: Routes::storage(),
+                                div { class: "flex gap-2",
+                                    CloudOutline {}
+                                    span { class: "max-md:hidden", "Storage" }
+                                }
 
-                        div { class: "tooltip-content max-md:w-48",
-                            div { class: "md:hidden text-left", "Storage" }
-                            progress {
-                                class: "progress progress-primary w-full",
-                                value: user.used_storage_bytes,
-                                max: user.total_storage_bytes,
-                            }
-                            div { class: "text-xs text-right",
-                                {user.used_storage.clone()}
-                                " of "
-                                {user.total_storage.clone()}
-                                " used"
+                                div { class: "tooltip-content max-md:w-48",
+                                    div { class: "md:hidden text-left", "Storage" }
+                                    progress {
+                                        class: "progress progress-primary w-full",
+                                        value: user.used_storage_bytes,
+                                        max: user.total_storage_bytes,
+                                    }
+                                    div { class: "text-xs text-right",
+                                        {user.used_storage.clone()}
+                                        " of "
+                                        {user.total_storage.clone()}
+                                        " used"
+                                    }
+                                }
                             }
                         }
                     }

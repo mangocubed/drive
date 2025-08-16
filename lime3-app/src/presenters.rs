@@ -6,6 +6,8 @@ use lime3_core::enums::FileVisibility;
 #[cfg(feature = "server")]
 use lime3_core::server::commands::get_folder_by_id;
 #[cfg(feature = "server")]
+use lime3_core::server::config::MembershipConfig;
+#[cfg(feature = "server")]
 use lime3_core::server::models::{File, Folder, FolderItem, User};
 
 #[cfg(feature = "server")]
@@ -119,6 +121,34 @@ impl AsyncInto<FolderPresenter> for Folder<'_> {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct MembershipPresenter {
+    pub code: String,
+    pub name: String,
+    pub description: String,
+    pub max_size_per_file: String,
+    pub total_storage: String,
+    pub monthly_price: Option<String>,
+    pub annual_price: Option<String>,
+    pub is_free: bool,
+}
+
+#[cfg(feature = "server")]
+impl From<&MembershipConfig> for MembershipPresenter {
+    fn from(membership: &MembershipConfig) -> Self {
+        Self {
+            code: membership.code.clone(),
+            name: membership.name.clone(),
+            description: membership.description.clone(),
+            max_size_per_file: membership.max_size_per_file.to_string(),
+            total_storage: membership.total_storage.to_string(),
+            monthly_price: membership.monthly.as_ref().map(|monthly| monthly.price()),
+            annual_price: membership.annual.as_ref().map(|annual| annual.price()),
+            is_free: membership.is_free(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct UserPresenter {
     id: Uuid,
     pub username: String,
@@ -128,6 +158,8 @@ pub struct UserPresenter {
     pub used_storage_bytes: u64,
     pub total_storage: String,
     pub used_storage: String,
+    pub membership: MembershipPresenter,
+    pub membership_is_annual: bool,
 }
 
 #[cfg(feature = "server")]
@@ -145,6 +177,8 @@ impl AsyncInto<UserPresenter> for User<'_> {
             used_storage_bytes: used_storage.as_u64(),
             total_storage: total_storage.to_string(),
             used_storage: used_storage.to_string(),
+            membership: self.membership().into(),
+            membership_is_annual: self.membership_is_annual,
         }
     }
 }

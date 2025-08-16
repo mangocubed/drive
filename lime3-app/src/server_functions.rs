@@ -15,7 +15,7 @@ use lime3_core::server::commands::*;
 use lime3_core::server::models::{User, UserSession};
 
 use crate::forms::FormStatus;
-use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, UserPresenter};
+use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, MembershipPresenter, UserPresenter};
 use crate::routes::Routes;
 
 #[cfg(feature = "server")]
@@ -54,6 +54,19 @@ impl ServFnError {
 }
 
 pub type ServFnResult<T = ()> = ServerFnResult<T, ServFnError>;
+
+#[server]
+pub async fn attempt_to_create_checkout(membership_code: String, membership_is_annual: bool) -> ServFnResult<()> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+    let membership =
+        get_membership_by_code(&membership_code).ok_or(ServFnError::Other("Invalid membership code".to_owned()))?;
+
+    let result = create_checkout(&user, membership, membership_is_annual).await;
+
+    Ok(())
+}
 
 #[server]
 pub async fn attempt_to_create_folder(input: FolderInput) -> ServFnResult<FormStatus> {
@@ -191,6 +204,18 @@ pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResul
     let folder_items = get_all_folder_items_by_user(&user, parent_folder.as_ref()).await;
 
     Ok(futures::future::join_all(folder_items.iter().map(|folder_item| folder_item.async_into())).await)
+}
+
+#[server]
+pub async fn get_available_memberships() -> ServFnResult<Vec<MembershipPresenter>> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+
+    Ok(get_available_memberships_by_user(&user)
+        .iter()
+        .map(|membership| membership.into())
+        .collect())
 }
 
 #[server]

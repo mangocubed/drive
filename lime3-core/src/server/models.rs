@@ -9,9 +9,9 @@ use image::{DynamicImage, ImageDecoder, ImageReader};
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
-use crate::server::commands::get_used_storage_by_user;
+use crate::server::commands::{get_membership_by_code, get_used_storage_by_user};
 
-use super::config::{MEMBERSHIPS_CONFIG, MembershipConfig, STORAGE_CONFIG};
+use super::config::{MembershipConfig, STORAGE_CONFIG};
 use super::constants::ALLOWED_FILE_FORMATS;
 
 fn verify_password(encrypted_password: &str, password: &str) -> bool {
@@ -38,12 +38,16 @@ pub struct File<'a> {
 }
 
 impl File<'_> {
+    pub fn cache_directory(&self) -> String {
+        format!("{}/cache/files", STORAGE_CONFIG.path)
+    }
+
     pub fn default_path(&self) -> String {
-        format!("{}/default.{}", self.directory(), self.format().extension())
+        format!("{}/{}.{}", self.directory(), self.id, self.format().extension())
     }
 
     pub fn directory(&self) -> String {
-        format!("{}/files/{}", STORAGE_CONFIG.path, self.id)
+        format!("{}/files", STORAGE_CONFIG.path)
     }
 
     pub fn format(&self) -> &FileFormat {
@@ -89,6 +93,8 @@ impl File<'_> {
                     dynamic_image.resize(width as u32, height as u32, STORAGE_CONFIG.image_ops_filter_type())
                 };
 
+                let _ = std::fs::create_dir_all(self.cache_directory());
+
                 dynamic_image.save(variant_path.clone()).unwrap();
             }
 
@@ -123,8 +129,9 @@ impl File<'_> {
 
     pub fn variant_path(&self, width: u16, height: u16, fill: bool) -> String {
         format!(
-            "{}/{}x{}{}.{}",
-            self.directory(),
+            "{}/{}_{}x{}{}.{}",
+            self.cache_directory(),
+            self.id,
             width,
             height,
             if fill { "_fill" } else { "" },
@@ -175,7 +182,8 @@ pub struct User<'a> {
     pub language_code: String,
     pub country_alpha2: String,
     pub membership_code: Cow<'a, str>,
-    pub has_annual_billing: bool,
+    pub membership_is_annual: bool,
+    pub membership_updated_at: Option<DateTime<Utc>>,
     pub disabled_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -200,7 +208,7 @@ impl User<'_> {
     }
 
     pub fn membership(&self) -> &MembershipConfig {
-        MEMBERSHIPS_CONFIG.get(&self.membership_code).unwrap()
+        get_membership_by_code(&self.membership_code).unwrap()
     }
 
     pub async fn used_storage(&self) -> ByteSize {

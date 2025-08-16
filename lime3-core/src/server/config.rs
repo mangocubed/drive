@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::exists;
 use std::sync::LazyLock;
 
@@ -7,13 +7,15 @@ use figment::Figment;
 use figment::providers::{Env, Format, Serialized, Toml};
 use image::imageops::FilterType;
 use serde::{Deserialize, Serialize};
+use url::Url;
+use uuid::Uuid;
 
-fn extract_from_config<'a, T>(key: &str) -> T
+fn extract_from_config<'a, T>(path: &str) -> T
 where
     T: Deserialize<'a> + Serialize + Default,
 {
     if let Ok(true) = exists("Config.toml") {
-        Figment::from(Toml::file("Config.toml")).focus(key).extract().unwrap()
+        Figment::from(Toml::file("Config.toml")).extract_inner(path).unwrap()
     } else {
         T::default()
     }
@@ -29,11 +31,29 @@ where
         .unwrap()
 }
 
+pub(crate) static BILLING_CONFIG: LazyLock<BillingConfig> = LazyLock::new(|| extract_from_env("BILLING_"));
 pub(crate) static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_from_env("DATABASE_"));
 pub(crate) static MEMBERSHIPS_CONFIG: LazyLock<MembershipsConfig> =
     LazyLock::new(|| extract_from_config("memberships"));
 pub static SESSION_CONFIG: LazyLock<SessionConfig> = LazyLock::new(|| extract_from_env("SESSION_"));
 pub(crate) static STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| extract_from_env("STORAGE_"));
+
+#[derive(Deserialize, Serialize)]
+pub(crate) struct BillingConfig {
+    pub polar_base_url: String,
+    pub polar_token: String,
+    pub success_base_url: Url,
+}
+
+impl Default for BillingConfig {
+    fn default() -> Self {
+        Self {
+            polar_base_url: "https://sandbox-api.polar.sh/v1/".to_owned(),
+            polar_token: "".to_owned(),
+            success_base_url: "https://example.com/success".parse().unwrap(),
+        }
+    }
+}
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct DatabaseConfig {
@@ -52,44 +72,61 @@ impl Default for DatabaseConfig {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct MembershipConfig {
-    name: String,
-    description: String,
+    pub code: String,
+    pub name: String,
+    pub description: String,
     pub max_size_per_file: ByteSize,
     pub total_storage: ByteSize,
+    pub monthly: Option<MembershipIntervalConfig>,
+    pub annual: Option<MembershipIntervalConfig>,
     pub is_restricted: bool,
 }
 
+impl MembershipConfig {
+    pub fn is_free(&self) -> bool {
+        self.monthly.is_none() || self.annual.is_none()
+    }
+}
+
+#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub struct MembershipIntervalConfig {
+    pub price_cents: u16,
+    pub polar_product_id: Uuid,
+}
+
+impl MembershipIntervalConfig {
+    pub fn price(&self) -> String {
+        format!("$ {} USD", self.price_cents as f32 / 100.0)
+    }
+}
+
 #[derive(Deserialize, Serialize)]
-pub struct MembershipsConfig(HashMap<String, MembershipConfig>);
-
-impl MembershipsConfig {
-    pub fn contains_code(&self, code: &str) -> bool {
-        self.0.contains_key(code)
-    }
-
-    pub fn get(&self, code: &str) -> Option<&MembershipConfig> {
-        self.0.get(code)
-    }
+pub(crate) struct MembershipsConfig {
+    pub default: String,
+    pub options: HashSet<MembershipConfig>,
 }
 
 impl Default for MembershipsConfig {
     fn default() -> Self {
-        let mut memberships = HashMap::new();
+        let mut memberships = HashSet::new();
 
-        memberships.insert(
-            "free".to_owned(),
-            MembershipConfig {
-                name: "Free".to_owned(),
-                description: "A great option for newbies".to_owned(),
-                max_size_per_file: ByteSize::mib(100),
-                total_storage: ByteSize::gib(1),
-                is_restricted: false,
-            },
-        );
+        memberships.insert(MembershipConfig {
+            code: "starter".to_owned(),
+            name: "Starter".to_owned(),
+            description: "A great option for newbies.".to_owned(),
+            max_size_per_file: ByteSize::mib(100),
+            total_storage: ByteSize::gib(1),
+            monthly: None,
+            annual: None,
+            is_restricted: false,
+        });
 
-        Self(memberships)
+        Self {
+            default: "starter".to_owned(),
+            options: memberships,
+        }
     }
 }
 

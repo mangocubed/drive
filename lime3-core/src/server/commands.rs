@@ -8,19 +8,20 @@ use bytesize::ByteSize;
 use chrono::NaiveDate;
 use file_format::FileFormat;
 use md5::{Digest, Md5};
+use polar_rs::{CheckoutSession, CheckoutSessionParams, PolarError, PolarResult};
 use strum::IntoEnumIterator;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
 use crate::enums::FileVisibility;
 use crate::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
-use crate::server::config::MEMBERSHIPS_CONFIG;
+use crate::server::config::{BILLING_CONFIG, MEMBERSHIPS_CONFIG, MembershipConfig};
 use crate::server::constants::ERROR_IS_TOO_LARGE;
 use crate::server::models::FolderItem;
 
 use super::constants::{ALLOWED_FILE_FORMATS, ERROR_ALREADY_EXISTS, ERROR_IS_INVALID};
-use super::db_pool;
 use super::models::{File, Folder, User, UserSession};
+use super::{POLAR_CLIENT, db_pool};
 
 pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, ValidationErrors> {
     input.validate()?;
@@ -42,6 +43,38 @@ pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, Valid
     } else {
         Err(ValidationErrors::new())
     }
+}
+
+pub async fn create_checkout(
+    user: &User<'_>,
+    membership: &MembershipConfig,
+    annual_billing: bool,
+) -> PolarResult<CheckoutSession> {
+    let product_id = if annual_billing {
+        membership.annual.as_ref().map(|annual| annual.polar_product_id)
+    } else {
+        membership.monthly.as_ref().map(|monthly| monthly.polar_product_id)
+    };
+
+    let Some(product_id) = product_id else {
+        return Err(PolarError::Request("Invalid membership".to_owned()));
+    };
+
+    let params = CheckoutSessionParams {
+        products: vec![product_id],
+        external_customer_id: Some(user.id.to_string()),
+        customer_email: Some(user.email.to_string()),
+        customer_name: Some(user.full_name.to_string()),
+        success_url: Some(
+            BILLING_CONFIG
+                .success_base_url
+                .join("checkout-success?checkout_id={CHECKOUT_ID}")
+                .unwrap(),
+        ),
+        ..Default::default()
+    };
+
+    POLAR_CLIENT.create_checkout_session(&params).await
 }
 
 pub async fn delete_all_user_sessions_by_user(user: &User<'_>) -> sqlx::Result<()> {
@@ -135,6 +168,19 @@ async fn file_name_exists(user: &User<'_>, parent_folder_id: Option<Uuid>, name:
     .fetch_one(db_pool)
     .await
     .is_ok()
+}
+
+pub fn get_available_memberships_by_user(user: &User<'_>) -> Vec<MembershipConfig> {
+    MEMBERSHIPS_CONFIG
+        .options
+        .iter()
+        .filter(|option| !option.is_restricted && option.code != user.membership_code)
+        .cloned()
+        .collect()
+}
+
+pub fn get_membership_by_code(code: &str) -> Option<&MembershipConfig> {
+    MEMBERSHIPS_CONFIG.options.iter().find(|option| option.code == code)
 }
 
 pub async fn get_file_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Result<File<'a>> {
@@ -427,8 +473,9 @@ pub async fn insert_user<'a>(input: &RegisterInput) -> Result<User<'a>, Validati
             display_name,
             full_name,
             birthdate,
-            country_alpha2
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+            country_alpha2,
+            membership_code
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
         input.username,                    // $1
         input.email.to_lowercase(),        // $2
         encrypt_password(&input.password), // $3
@@ -436,6 +483,7 @@ pub async fn insert_user<'a>(input: &RegisterInput) -> Result<User<'a>, Validati
         input.full_name,                   // $5
         birthdate,                         // $6
         input.country_alpha2,              // $7
+        MEMBERSHIPS_CONFIG.default,        // $8
     )
     .fetch_one(db_pool)
     .await
@@ -454,26 +502,23 @@ pub async fn insert_user_session(user: &User<'_>) -> sqlx::Result<UserSession> {
     .await
 }
 
-pub async fn update_user_membership(
-    user: &User<'_>,
-    membership_code: &str,
-    has_annual_billing: bool,
-) -> sqlx::Result<()> {
+pub async fn update_user_membership(user: &User<'_>, code: &str, is_annual: bool) -> sqlx::Result<()> {
     let db_pool = db_pool().await;
 
-    if user.membership_code == membership_code && user.has_annual_billing == has_annual_billing {
+    if user.membership_code == code && user.membership_is_annual == is_annual {
         return Ok(());
     }
 
-    if !MEMBERSHIPS_CONFIG.contains_code(membership_code) {
-        return Err(sqlx::Error::InvalidArgument("membership_code".to_owned()));
+    if !MEMBERSHIPS_CONFIG.options.iter().any(|option| option.code == code) {
+        return Err(sqlx::Error::InvalidArgument("code".to_owned()));
     }
 
     sqlx::query!(
-        "UPDATE users SET membership_code = $2, has_annual_billing = $3 WHERE id = $1",
-        user.id,            // $1
-        membership_code,    // $2
-        has_annual_billing, // $3
+        "UPDATE users SET membership_code = $2, membership_is_annual = $3, membership_updated_at = current_timestamp
+        WHERE id = $1",
+        user.id,   // $1
+        code,      // $2
+        is_annual, // $3
     )
     .execute(db_pool)
     .await
