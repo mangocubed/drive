@@ -1,13 +1,11 @@
 use dioxus::prelude::*;
 
-use crate::components::{Modal, PageTitle};
-use crate::server_functions::get_available_memberships;
+use crate::components::{MembershipsModal, PageTitle};
 use crate::use_current_user;
 
 #[component]
 pub fn StoragePage() -> Element {
-    let current_user = use_current_user();
-    let available_memberships = use_resource(get_available_memberships);
+    let mut current_user = use_current_user();
     let mut show_memberships_modal = use_signal(|| false);
 
     rsx! {
@@ -73,45 +71,11 @@ pub fn StoragePage() -> Element {
                 }
             }
 
-            Modal { is_open: show_memberships_modal,
-                div { class: "grid gap-4",
-                    if let Some(Ok(memberships)) = &*available_memberships.read() {
-                        for membership in memberships {
-                            div { class: "card card-border",
-                                div { class: "card-body",
-                                    h3 { class: "h3", {membership.name.clone()} }
-
-                                    div { class: "mb-1",
-                                        span { class: "text-lg text-nowrap",
-                                            {membership.monthly_price.clone()}
-                                            " / month"
-                                        }
-                                        " or "
-                                        span { class: "text-lg text-nowrap",
-                                            {membership.annual_price.clone()}
-                                            " / year"
-                                        }
-                                    }
-
-                                    div { class: "mb-1", {membership.description.clone()} }
-
-                                    ul { class: "mb-1 list",
-                                        li { class: "list-row",
-                                            {membership.total_storage.clone()}
-                                            " storage"
-                                        }
-                                        li { class: "list-row",
-                                            {membership.max_size_per_file.clone()}
-                                            " per file"
-                                        }
-                                    }
-
-                                    button { class: "btn btn-primary w-full mt-auto", "Select" }
-                                }
-                            }
-                        }
-                    }
-                }
+            MembershipsModal {
+                is_open: show_memberships_modal,
+                on_success: move |_| {
+                    current_user.restart();
+                },
             }
         }
     }

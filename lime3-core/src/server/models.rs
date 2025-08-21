@@ -9,7 +9,7 @@ use image::{DynamicImage, ImageDecoder, ImageReader};
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
-use crate::server::commands::{get_membership_by_code, get_used_storage_by_user};
+use crate::server::commands::{get_membership_by_code, get_used_storage_by_user, get_user_by_id};
 
 use super::config::{MembershipConfig, STORAGE_CONFIG};
 use super::constants::ALLOWED_FILE_FORMATS;
@@ -171,6 +171,7 @@ pub struct Folder<'a> {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Clone)]
 pub struct User<'a> {
     pub id: Uuid,
     pub username: Cow<'a, str>,
@@ -183,6 +184,8 @@ pub struct User<'a> {
     pub country_alpha2: String,
     pub membership_code: Cow<'a, str>,
     pub membership_is_annual: bool,
+    pub membership_subscription_id: Option<Uuid>,
+    pub membership_expires_at: Option<DateTime<Utc>>,
     pub membership_updated_at: Option<DateTime<Utc>>,
     pub disabled_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,

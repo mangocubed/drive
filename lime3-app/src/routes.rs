@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use uuid::Uuid;
 
 use crate::layouts::{GuestLayout, UserLayout};
-use crate::pages::{FilePage, FolderPage, HomePage, LoginPage, RegisterPage, StoragePage};
+use crate::pages::*;
 
 #[derive(Clone, Routable)]
 #[rustfmt::skip]
@@ -12,9 +12,9 @@ pub enum Routes {
         #[route("/")]
         HomePage {},
         #[route("/files/:id")]
-        FilePage {id: Uuid },
+        FilePage { id: Uuid },
         #[route("/folders/:id")]
-        FolderPage {id: Uuid },
+        FolderPage { id: Uuid },
         #[route("/storage")]
         StoragePage {},
     #[end_layout]

@@ -1,11 +1,11 @@
 use clap::{Arg, Command, value_parser};
 
 const ARG_BIRTHDATE: &str = "birthdate";
+const ARG_CODE: &str = "code";
 const ARG_COUNTRY: &str = "country";
 const ARG_EMAIL: &str = "email";
 const ARG_FULL_NAME: &str = "full-name";
-const ARG_HAS_ANNUAL_BILLING: &str = "has-annual-billing";
-const ARG_MEMBERSHIP_CODE: &str = "membership-code";
+const ARG_IS_ANNUAL: &str = "is-annual";
 const ARG_PASSWORD: &str = "password";
 const ARG_USERNAME: &str = "username";
 
@@ -16,7 +16,7 @@ const COMMAND_SET_USER_MEMBERSHIP: &str = "set-user-membership";
 
 use lime3_core::inputs::RegisterInput;
 use lime3_core::server::commands::{
-    disable_user, enable_user, get_user_by_username, insert_user, update_user_membership,
+    disable_user, enable_user, get_membership_by_code, get_user_by_username, insert_user, update_user_membership,
 };
 
 #[tokio::main]
@@ -78,15 +78,15 @@ async fn main() {
                 .version(version)
                 .arg(arg_username)
                 .arg(
-                    Arg::new(ARG_MEMBERSHIP_CODE)
-                        .short('m')
-                        .long("membership-code")
+                    Arg::new(ARG_CODE)
+                        .short('c')
+                        .long("code")
                         .value_parser(value_parser!(String)),
                 )
                 .arg(
-                    Arg::new(ARG_HAS_ANNUAL_BILLING)
+                    Arg::new(ARG_IS_ANNUAL)
                         .short('a')
-                        .long("has-annual-billing")
+                        .long("is-annual")
                         .default_value("false")
                         .value_parser(value_parser!(bool)),
                 ),
@@ -110,7 +110,7 @@ async fn main() {
             let full_name = matches
                 .get_one::<String>(ARG_FULL_NAME)
                 .cloned()
-                .expect("Could not get argument full name");
+                .expect("Could not get argument full-name");
             let birthdate = matches
                 .get_one::<String>(ARG_BIRTHDATE)
                 .cloned()
@@ -171,14 +171,14 @@ async fn main() {
             let username = matches
                 .get_one::<String>(ARG_USERNAME)
                 .expect("Argument username is missing");
-            let membership_code = matches
-                .get_one::<String>(ARG_MEMBERSHIP_CODE)
-                .expect("Argument membership-code is missing");
-            let has_annual_billing = matches
-                .get_one::<bool>(ARG_HAS_ANNUAL_BILLING)
-                .expect("Argument has-annual-billing is missing");
+            let code = matches.get_one::<String>(ARG_CODE).expect("Argument code is missing");
+            let is_annual = matches
+                .get_one::<bool>(ARG_IS_ANNUAL)
+                .expect("Argument is-annual is missing");
             let user = get_user_by_username(username).await.expect("Could not get user");
-            let result = update_user_membership(&user, membership_code, *has_annual_billing).await;
+            let membership = get_membership_by_code(code).expect("Could not get membership");
+
+            let result = update_user_membership(&user, membership, *is_annual).await;
 
             match result {
                 Ok(_) => {

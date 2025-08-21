@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
+use url::Url;
 use uuid::Uuid;
 
 #[cfg(feature = "server")]
@@ -54,19 +55,6 @@ impl ServFnError {
 }
 
 pub type ServFnResult<T = ()> = ServerFnResult<T, ServFnError>;
-
-#[server]
-pub async fn attempt_to_create_checkout(membership_code: String, membership_is_annual: bool) -> ServFnResult<()> {
-    require_login().await?;
-
-    let user = extract_user().await?.unwrap();
-    let membership =
-        get_membership_by_code(&membership_code).ok_or(ServFnError::Other("Invalid membership code".to_owned()))?;
-
-    let result = create_checkout(&user, membership, membership_is_annual).await;
-
-    Ok(())
-}
 
 #[server]
 pub async fn attempt_to_create_folder(input: FolderInput) -> ServFnResult<FormStatus> {
@@ -154,6 +142,30 @@ pub async fn attempt_to_register(input: RegisterInput) -> ServFnResult<FormStatu
 }
 
 #[server]
+pub async fn attempt_to_update_membership(
+    membership_code: String,
+    membership_is_annual: bool,
+) -> ServFnResult<Option<Url>> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+    let membership = get_membership_by_code(&membership_code).map_err(|err| ServFnError::Other(err.to_string()))?;
+
+    if membership.is_free() {
+        let _ = update_user_membership(&user, membership, false).await;
+
+        return Ok(None);
+    }
+
+    let result = create_checkout_session(&user, membership, membership_is_annual).await;
+
+    match result {
+        Ok(checkout_session) => Ok(Some(checkout_session.url)),
+        Err(error) => Err(ServFnError::Other(error.to_string()).into()),
+    }
+}
+
+#[server]
 pub async fn attempt_to_upload_file(input: FileInput) -> ServFnResult<bool> {
     require_login().await?;
 
@@ -173,11 +185,10 @@ async fn extract_session() -> ServFnResult<Session> {
 
 #[cfg(feature = "server")]
 async fn extract_user<'a>() -> ServFnResult<Option<User<'a>>> {
-    let Some(user_session) = extract_user_session().await? else {
-        return Ok(None);
-    };
+    let session = extract_session().await?;
+    let user = session.user().await.ok();
 
-    Ok(get_user_by_id(user_session.user_id).await.ok())
+    Ok(user)
 }
 
 #[cfg(feature = "server")]

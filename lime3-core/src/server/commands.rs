@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File as FsFile;
 use std::io::Write;
 
@@ -8,7 +9,7 @@ use bytesize::ByteSize;
 use chrono::NaiveDate;
 use file_format::FileFormat;
 use md5::{Digest, Md5};
-use polar_rs::{CheckoutSession, CheckoutSessionParams, PolarError, PolarResult};
+use polar_rs::{CheckoutSession, CheckoutSessionParams, PolarError, PolarResult, SubscriptionParams};
 use strum::IntoEnumIterator;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
@@ -16,7 +17,7 @@ use validator::{Validate, ValidationErrors};
 use crate::enums::FileVisibility;
 use crate::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
 use crate::server::config::{BILLING_CONFIG, MEMBERSHIPS_CONFIG, MembershipConfig};
-use crate::server::constants::ERROR_IS_TOO_LARGE;
+use crate::server::constants::{ERROR_IS_TOO_LARGE, METADATA_MEMBERSHIP_CODE, METADATA_MEMBERSHIP_IS_ANNUAL};
 use crate::server::models::FolderItem;
 
 use super::constants::{ALLOWED_FILE_FORMATS, ERROR_ALREADY_EXISTS, ERROR_IS_INVALID};
@@ -45,12 +46,45 @@ pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, Valid
     }
 }
 
-pub async fn create_checkout(
+pub async fn cancel_user_membership(user: &User<'_>) -> anyhow::Result<()> {
+    if let Some(membership_subscription_id) = user.membership_subscription_id {
+        let params = SubscriptionParams {
+            cancel_at_period_end: Some(true),
+            ..Default::default()
+        };
+
+        let subscription = POLAR_CLIENT
+            .update_subscription(membership_subscription_id, &params)
+            .await?;
+            
+        sqlx::query!("UPDATE users SET membership_expires_at = $2 WHERE id = $1", user.id, subscription.ends_at).execute(db_pool).await?;
+    }
+    
+    Ok(())
+}
+
+pub async fn confirm_successful_checkout(checkout_id: Uuid, user: &User<'_>) -> anyhow::Result<()> {
+    let checkout_session = POLAR_CLIENT.get_checkout_session(checkout_id).await?;
+
+    if Some(user.id) != checkout_session.external_customer_id.and_then(|id| id.parse().ok())
+        || !checkout_session.status.is_succeeded()
+    {
+        return Err(anyhow::anyhow!("Invalid checkout session"));
+    }
+
+    let membership_code = checkout_session.metadata[METADATA_MEMBERSHIP_CODE].clone();
+    let membership_is_annual = &checkout_session.metadata[METADATA_MEMBERSHIP_IS_ANNUAL];
+    let membership = get_membership_by_code(&membership_code)?;
+
+    Ok(update_user_membership(user, &membership, membership_is_annual.parse()?).await?)
+}
+
+pub async fn create_checkout_session(
     user: &User<'_>,
     membership: &MembershipConfig,
-    annual_billing: bool,
+    membership_is_annual: bool,
 ) -> PolarResult<CheckoutSession> {
-    let product_id = if annual_billing {
+    let product_id = if membership_is_annual {
         membership.annual.as_ref().map(|annual| annual.polar_product_id)
     } else {
         membership.monthly.as_ref().map(|monthly| monthly.polar_product_id)
@@ -60,15 +94,24 @@ pub async fn create_checkout(
         return Err(PolarError::Request("Invalid membership".to_owned()));
     };
 
+    let mut metadata = HashMap::new();
+
+    metadata.insert(METADATA_MEMBERSHIP_CODE.to_owned(), membership.code.clone());
+    metadata.insert(
+        METADATA_MEMBERSHIP_IS_ANNUAL.to_owned(),
+        membership_is_annual.to_string(),
+    );
+
     let params = CheckoutSessionParams {
         products: vec![product_id],
         external_customer_id: Some(user.id.to_string()),
         customer_email: Some(user.email.to_string()),
         customer_name: Some(user.full_name.to_string()),
+        metadata,
         success_url: Some(
             BILLING_CONFIG
                 .success_base_url
-                .join("checkout-success?checkout_id={CHECKOUT_ID}")
+                .join("checkout-successful?checkout_id={CHECKOUT_ID}")
                 .unwrap(),
         ),
         ..Default::default()
@@ -179,8 +222,12 @@ pub fn get_available_memberships_by_user(user: &User<'_>) -> Vec<MembershipConfi
         .collect()
 }
 
-pub fn get_membership_by_code(code: &str) -> Option<&MembershipConfig> {
-    MEMBERSHIPS_CONFIG.options.iter().find(|option| option.code == code)
+pub fn get_membership_by_code(code: &str) -> anyhow::Result<&MembershipConfig> {
+    MEMBERSHIPS_CONFIG
+        .options
+        .iter()
+        .find(|option| option.code == code)
+        .ok_or_else(|| anyhow::anyhow!("Membership not found"))
 }
 
 pub async fn get_file_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Result<File<'a>> {
@@ -298,6 +345,18 @@ pub async fn get_user_by_id<'a>(id: Uuid) -> sqlx::Result<User<'a>> {
     sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1 LIMIT 1", id)
         .fetch_one(db_pool)
         .await
+}
+
+pub async fn get_user_by_user_session_id<'a>(user_session_id: Uuid) -> sqlx::Result<User<'a>> {
+    let db_pool = db_pool().await;
+
+    sqlx::query_as!(
+        User,
+        "SELECT * FROM users WHERE id = (SELECT user_id FROM user_sessions WHERE id = $1 LIMIT 1) LIMIT 1",
+        user_session_id
+    )
+    .fetch_one(db_pool)
+    .await
 }
 
 pub async fn get_user_by_username(username: &str) -> sqlx::Result<User<'_>> {
@@ -502,23 +561,23 @@ pub async fn insert_user_session(user: &User<'_>) -> sqlx::Result<UserSession> {
     .await
 }
 
-pub async fn update_user_membership(user: &User<'_>, code: &str, is_annual: bool) -> sqlx::Result<()> {
+pub async fn update_user_membership(
+    user: &User<'_>,
+    membership: &MembershipConfig,
+    membership_is_annual: bool,
+) -> sqlx::Result<()> {
     let db_pool = db_pool().await;
 
-    if user.membership_code == code && user.membership_is_annual == is_annual {
+    if user.membership_code == membership.code && user.membership_is_annual == membership_is_annual {
         return Ok(());
-    }
-
-    if !MEMBERSHIPS_CONFIG.options.iter().any(|option| option.code == code) {
-        return Err(sqlx::Error::InvalidArgument("code".to_owned()));
     }
 
     sqlx::query!(
         "UPDATE users SET membership_code = $2, membership_is_annual = $3, membership_updated_at = current_timestamp
         WHERE id = $1",
-        user.id,   // $1
-        code,      // $2
-        is_annual, // $3
+        user.id,              // $1
+        membership.code,      // $2
+        membership_is_annual, // $3
     )
     .execute(db_pool)
     .await

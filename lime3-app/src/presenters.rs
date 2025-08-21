@@ -120,7 +120,7 @@ impl AsyncInto<FolderPresenter> for Folder<'_> {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct MembershipPresenter {
     pub code: String,
     pub name: String,

@@ -50,7 +50,7 @@ impl Default for BillingConfig {
         Self {
             polar_base_url: "https://sandbox-api.polar.sh/v1/".to_owned(),
             polar_token: "".to_owned(),
-            success_base_url: "https://example.com/success".parse().unwrap(),
+            success_base_url: "http://127.0.0.1:8080/".parse().unwrap(),
         }
     }
 }

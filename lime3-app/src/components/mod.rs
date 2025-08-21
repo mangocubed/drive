@@ -5,37 +5,10 @@ use dioxus::prelude::*;
 use crate::server_functions::is_logged_in;
 
 mod file_manager;
+mod modals;
 
 pub use file_manager::FileManager;
-
-#[component]
-pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Callback) -> Element {
-    rsx! {
-        Modal { is_closable: false, is_open,
-            div { {children} }
-
-            div { class: "modal-action",
-                button {
-                    class: "btn",
-                    onclick: move |event| {
-                        event.prevent_default();
-                        *is_open.write() = false;
-                    },
-                    "Cancel"
-                }
-                button {
-                    class: "btn btn-primary",
-                    onclick: move |event| {
-                        event.prevent_default();
-                        *is_open.write() = false;
-                        on_accept.call(());
-                    },
-                    "Accept"
-                }
-            }
-        }
-    }
-}
+pub use modals::{ConfirmationModal, MembershipsModal, Modal};
 
 #[component]
 pub fn LoggedIn(children: Element) -> Element {
@@ -44,38 +17,6 @@ pub fn LoggedIn(children: Element) -> Element {
     rsx! {
         if let Some(Ok(true)) = is_logged_in() {
             {children}
-        }
-    }
-}
-
-#[component]
-pub fn Modal(
-    children: Element,
-    is_open: Signal<bool>,
-    #[props(default = true)] is_closable: bool,
-    #[props(optional)] on_close: Callback<MouseEvent>,
-) -> Element {
-    let on_close = move |event: MouseEvent| {
-        event.prevent_default();
-        *is_open.write() = false;
-        on_close.call(event);
-    };
-
-    rsx! {
-        dialog { class: "modal", class: if is_open() { "modal-open" },
-            if is_closable {
-                button {
-                    class: "btn btn-sm btn-circle btn-ghost absolute right-2 top-2",
-                    onclick: on_close,
-                    "✕"
-                }
-            }
-
-            div { class: "modal-box", {children} }
-
-            if is_closable {
-                div { class: "modal-backdrop", onclick: on_close }
-            }
         }
     }
 }
