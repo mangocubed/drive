@@ -18,7 +18,7 @@ async fn db_pool<'a>() -> &'a PgPool {
                 .max_connections(DATABASE_CONFIG.max_connections as u32)
                 .connect(&DATABASE_CONFIG.url)
                 .await
-                .expect("Failed to create DB pool.")
+                .expect("Could not create DB pool.")
         })
         .await
 }

@@ -10,7 +10,7 @@ use uuid::Uuid;
 mod components;
 mod forms;
 mod icons;
-mod layout;
+mod layouts;
 mod pages;
 mod presenters;
 mod routes;
@@ -32,6 +32,12 @@ pub struct FileQuery {
     pub width: Option<u16>,
     pub height: Option<u16>,
     pub fill: Option<bool>,
+}
+
+#[cfg(feature = "server")]
+#[derive(serde::Deserialize)]
+pub struct CheckoutQuery {
+    pub checkout_id: Uuid,
 }
 
 #[cfg(feature = "server")]

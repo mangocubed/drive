@@ -1,20 +1,25 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::layout::Layout;
-use crate::pages::{FilePage, FolderPage, HomePage, LoginPage, RegisterPage};
+use crate::layouts::{GuestLayout, UserLayout};
+use crate::pages::*;
 
 #[derive(Clone, Routable)]
 #[rustfmt::skip]
 #[allow(clippy::enum_variant_names)]
 pub enum Routes {
-    #[layout(Layout)]
-        #[route("/files/:id")]
-        FilePage {id: Uuid },
-        #[route("/folders/:id")]
-        FolderPage {id: Uuid },
+    #[layout(UserLayout)]
         #[route("/")]
         HomePage {},
+        #[route("/files/:id")]
+        FilePage { id: Uuid },
+        #[route("/folders/:id")]
+        FolderPage { id: Uuid },
+        #[route("/storage")]
+        StoragePage {},
+    #[end_layout]
+
+    #[layout(GuestLayout)]
         #[route("/login")]
         LoginPage {},
         #[route("/register")]
@@ -22,6 +27,10 @@ pub enum Routes {
 }
 
 impl Routes {
+    pub fn home() -> Self {
+        Routes::HomePage {}
+    }
+
     pub fn file(id: Uuid) -> Self {
         Routes::FilePage { id }
     }
@@ -30,8 +39,8 @@ impl Routes {
         Routes::FolderPage { id }
     }
 
-    pub fn home() -> Self {
-        Routes::HomePage {}
+    pub fn storage() -> Self {
+        Routes::StoragePage {}
     }
 
     pub fn login() -> Self {

@@ -12,10 +12,12 @@ use lime3_core::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
 #[cfg(feature = "server")]
 use lime3_core::server::commands::*;
 #[cfg(feature = "server")]
+use lime3_core::server::config::PRICING_CONFIG;
+#[cfg(feature = "server")]
 use lime3_core::server::models::{User, UserSession};
 
 use crate::forms::FormStatus;
-use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, UserPresenter};
+use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, PricingPresenter, UserPresenter};
 use crate::routes::Routes;
 
 #[cfg(feature = "server")]
@@ -141,6 +143,20 @@ pub async fn attempt_to_register(input: RegisterInput) -> ServFnResult<FormStatu
 }
 
 #[server]
+pub async fn attempt_to_update_space(total_space_gib: u8) -> ServFnResult<()> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+
+    let result = update_user_space(&user, bytesize::ByteSize::gib(total_space_gib.into())).await;
+
+    match result {
+        Ok(()) => Ok(()),
+        Err(error) => Err(ServFnError::Other(error.to_string()).into()),
+    }
+}
+
+#[server]
 pub async fn attempt_to_upload_file(input: FileInput) -> ServFnResult<bool> {
     require_login().await?;
 
@@ -160,11 +176,10 @@ async fn extract_session() -> ServFnResult<Session> {
 
 #[cfg(feature = "server")]
 async fn extract_user<'a>() -> ServFnResult<Option<User<'a>>> {
-    let Some(user_session) = extract_user_session().await? else {
-        return Ok(None);
-    };
+    let session = extract_session().await?;
+    let user = session.user().await.ok();
 
-    Ok(get_user_by_id(user_session.user_id).await.ok())
+    Ok(user)
 }
 
 #[cfg(feature = "server")]
@@ -199,7 +214,7 @@ pub async fn get_current_user() -> ServFnResult<Option<UserPresenter>> {
         return Ok(None);
     };
 
-    Ok(Some(user.into()))
+    Ok(Some(user.async_into().await))
 }
 
 #[server]
@@ -230,6 +245,13 @@ pub async fn get_folder(id: Uuid) -> ServFnResult<Option<FolderPresenter>> {
     } else {
         None
     })
+}
+
+#[server]
+pub async fn get_pricing() -> ServFnResult<PricingPresenter> {
+    require_login().await?;
+
+    Ok((*PRICING_CONFIG).into())
 }
 
 #[server]

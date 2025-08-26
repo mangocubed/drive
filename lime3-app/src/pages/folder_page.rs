@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::components::{FileManager, PageTitle, RequireLogin};
+use crate::components::{FileManager, PageTitle};
 use crate::routes::Routes;
 use crate::server_functions::get_folder;
 
@@ -31,26 +31,24 @@ pub fn FolderPage(id: ReadOnlySignal<Uuid>) -> Element {
     });
 
     rsx! {
-        RequireLogin {
-            if let Some(Some(folder)) = &*folder.read() {
-                PageTitle { {page_title()} }
+        if let Some(Some(folder)) = &*folder.read() {
+            PageTitle { {page_title()} }
 
-                h1 { class: "h1 breadcrumbs",
-                    ul {
-                        li {
-                            Link { to: Routes::home(), "Home" }
-                        }
-                        for (id , name) in folder.parent_folders.clone() {
-                            li {
-                                Link { to: Routes::folder(id), {name.clone()} }
-                            }
-                        }
-                        li { {folder.name.clone()} }
+            h1 { class: "h1 breadcrumbs",
+                ul {
+                    li {
+                        Link { to: Routes::home(), "Home" }
                     }
+                    for (id , name) in folder.parent_folders.clone() {
+                        li {
+                            Link { to: Routes::folder(id), {name.clone()} }
+                        }
+                    }
+                    li { {folder.name.clone()} }
                 }
-
-                FileManager { min_visibility: folder.visibility, parent_folder_id }
             }
+
+            FileManager { min_visibility: folder.visibility, parent_folder_id }
         }
     }
 }

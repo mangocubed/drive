@@ -6,6 +6,8 @@ use lime3_core::enums::FileVisibility;
 #[cfg(feature = "server")]
 use lime3_core::server::commands::get_folder_by_id;
 #[cfg(feature = "server")]
+use lime3_core::server::config::PricingConfig;
+#[cfg(feature = "server")]
 use lime3_core::server::models::{File, Folder, FolderItem, User};
 
 #[cfg(feature = "server")]
@@ -119,21 +121,54 @@ impl AsyncInto<FolderPresenter> for Folder<'_> {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct PricingPresenter {
+    pub free_quota: String,
+    pub free_quota_gib: u8,
+    pub max_quota: String,
+    pub max_quota_gib: u8,
+}
+
+#[cfg(feature = "server")]
+impl From<PricingConfig> for PricingPresenter {
+    fn from(config: PricingConfig) -> Self {
+        PricingPresenter {
+            free_quota: config.free_quota.to_string(),
+            free_quota_gib: config.free_quota_gib(),
+            max_quota: config.max_quota.to_string(),
+            max_quota_gib: config.max_quota_gib(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct UserPresenter {
     id: Uuid,
     pub username: String,
     pub display_name: String,
     pub initials: String,
+    pub total_space_bytes: u64,
+    pub used_space_bytes: u64,
+    pub total_space_gib: u8,
+    pub total_space: String,
+    pub used_space: String,
 }
 
 #[cfg(feature = "server")]
-impl From<User<'_>> for UserPresenter {
-    fn from(user: User) -> Self {
-        Self {
-            id: user.id,
-            username: user.username.to_string(),
-            display_name: user.display_name.to_string(),
-            initials: user.initials(),
+impl AsyncInto<UserPresenter> for User<'_> {
+    async fn async_into(&self) -> UserPresenter {
+        let total_space = self.total_space();
+        let used_space = self.used_space().await;
+
+        UserPresenter {
+            id: self.id,
+            username: self.username.to_string(),
+            display_name: self.display_name.to_string(),
+            initials: self.initials(),
+            total_space_bytes: total_space.as_u64(),
+            used_space_bytes: used_space.as_u64(),
+            total_space_gib: self.total_space_gib(),
+            total_space: total_space.to_string(),
+            used_space: used_space.to_string(),
         }
     }
 }

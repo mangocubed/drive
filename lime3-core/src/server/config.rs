@@ -1,5 +1,7 @@
+use std::ops::RangeInclusive;
 use std::sync::LazyLock;
 
+use bytesize::{ByteSize, GIB};
 use figment::Figment;
 use figment::providers::{Env, Serialized};
 use image::imageops::FilterType;
@@ -16,6 +18,7 @@ where
 }
 
 pub(crate) static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_from_env("DATABASE_"));
+pub static PRICING_CONFIG: LazyLock<PricingConfig> = LazyLock::new(|| extract_from_env("PRICING_"));
 pub static SESSION_CONFIG: LazyLock<SessionConfig> = LazyLock::new(|| extract_from_env("SESSION_"));
 pub(crate) static STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| extract_from_env("STORAGE_"));
 
@@ -33,6 +36,37 @@ impl Default for DatabaseConfig {
             max_connections: 5,
             url: format!("postgres://lime3:lime3@127.0.0.1:5432/lime3_{db_suffix}"),
         }
+    }
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize)]
+pub struct PricingConfig {
+    pub default_quota: ByteSize,
+    pub free_quota: ByteSize,
+    pub max_quota: ByteSize,
+}
+
+impl Default for PricingConfig {
+    fn default() -> Self {
+        Self {
+            default_quota: ByteSize::gib(1),
+            free_quota: ByteSize::gib(1),
+            max_quota: ByteSize::gib(10),
+        }
+    }
+}
+
+impl PricingConfig {
+    pub fn free_quota_gib(&self) -> u8 {
+        (self.free_quota.as_u64() / GIB).try_into().unwrap()
+    }
+
+    pub fn max_quota_gib(&self) -> u8 {
+        (self.max_quota.as_u64() / GIB).try_into().unwrap()
+    }
+
+    pub fn quota_range(&self) -> RangeInclusive<ByteSize> {
+        self.free_quota..=self.max_quota
     }
 }
 
@@ -61,30 +95,20 @@ impl Default for SessionConfig {
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct StorageConfig {
-    image_ops_filter_type: String,
+    pub image_filter_type: FilterType,
+    pub max_size_per_file: ByteSize,
     pub path: String,
 }
 
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            image_ops_filter_type: "CatmullRom".to_owned(),
+            image_filter_type: FilterType::CatmullRom,
+            max_size_per_file: ByteSize::mib(100),
             #[cfg(not(test))]
             path: "./storage".to_owned(),
             #[cfg(test)]
             path: "./storage/tests".to_owned(),
-        }
-    }
-}
-
-impl StorageConfig {
-    pub(crate) fn image_ops_filter_type(&self) -> FilterType {
-        match self.image_ops_filter_type.as_str() {
-            "CatmullRom" => FilterType::CatmullRom,
-            "Gaussian" => FilterType::Gaussian,
-            "Triangle" => FilterType::Triangle,
-            "Lanczos3" => FilterType::Lanczos3,
-            _ => FilterType::Nearest,
         }
     }
 }

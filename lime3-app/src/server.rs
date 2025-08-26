@@ -1,13 +1,27 @@
 use tower_sessions::Session;
 use uuid::Uuid;
 
-use lime3_core::server::commands::get_user_session_by_id;
-use lime3_core::server::models::UserSession;
+use lime3_core::server::commands::{get_user_by_user_session_id, get_user_session_by_id};
+use lime3_core::server::models::{User, UserSession};
 
 const SESSION_KEY_USER_SESSION_ID: &str = "user_session_id";
 
 pub trait SessionTrait {
-    fn user_session(&self) -> impl Future<Output = anyhow::Result<UserSession>>;
+    fn user<'a>(&self) -> impl Future<Output = anyhow::Result<User<'a>>> {
+        async {
+            let user_session_id = self.user_session_id().await?;
+
+            Ok(get_user_by_user_session_id(user_session_id).await?)
+        }
+    }
+
+    fn user_session(&self) -> impl Future<Output = anyhow::Result<UserSession>> {
+        async {
+            let user_session_id = self.user_session_id().await?;
+
+            Ok(get_user_session_by_id(user_session_id).await?)
+        }
+    }
 
     fn user_session_id(&self) -> impl Future<Output = anyhow::Result<Uuid>>;
 
@@ -17,12 +31,6 @@ pub trait SessionTrait {
 }
 
 impl SessionTrait for Session {
-    async fn user_session(&self) -> anyhow::Result<UserSession> {
-        let user_session_id = self.user_session_id().await?;
-
-        Ok(get_user_session_by_id(user_session_id).await?)
-    }
-
     async fn user_session_id(&self) -> anyhow::Result<Uuid> {
         self.get::<Uuid>(SESSION_KEY_USER_SESSION_ID)
             .await?

@@ -4,6 +4,7 @@ use std::io::Write;
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHasher};
+use bytesize::ByteSize;
 use chrono::NaiveDate;
 use file_format::FileFormat;
 use md5::{Digest, Md5};
@@ -13,11 +14,11 @@ use validator::{Validate, ValidationErrors};
 
 use crate::enums::FileVisibility;
 use crate::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
-use crate::server::models::FolderItem;
 
-use super::constants::{ALLOWED_FILE_FORMATS, ERROR_ALREADY_EXISTS, ERROR_IS_INVALID};
+use super::config::{PRICING_CONFIG, STORAGE_CONFIG};
+use super::constants::*;
 use super::db_pool;
-use super::models::{File, Folder, User, UserSession};
+use super::models::{File, Folder, FolderItem, User, UserSession};
 
 pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, ValidationErrors> {
     input.validate()?;
@@ -41,6 +42,15 @@ pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, Valid
     }
 }
 
+pub async fn delete_all_user_sessions_by_user(user: &User<'_>) -> sqlx::Result<()> {
+    let db_pool = db_pool().await;
+
+    sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", user.id)
+        .execute(db_pool)
+        .await
+        .map(|_| ())
+}
+
 pub async fn delete_user_session(user_session: &UserSession) -> sqlx::Result<()> {
     let db_pool = db_pool().await;
 
@@ -48,6 +58,25 @@ pub async fn delete_user_session(user_session: &UserSession) -> sqlx::Result<()>
         .execute(db_pool)
         .await
         .map(|_| ())
+}
+
+pub async fn disable_user(user: &User<'_>) -> sqlx::Result<()> {
+    let db_pool = db_pool().await;
+
+    if user.is_disabled() {
+        return Ok(());
+    }
+
+    sqlx::query!(
+        "UPDATE users SET disabled_at = current_timestamp WHERE disabled_at IS NULL AND id = $1",
+        user.id
+    )
+    .execute(db_pool)
+    .await?;
+
+    delete_all_user_sessions_by_user(user).await?;
+
+    Ok(())
 }
 
 async fn email_exists(value: &str) -> bool {
@@ -60,6 +89,22 @@ async fn email_exists(value: &str) -> bool {
     .fetch_one(db_pool)
     .await
     .is_ok()
+}
+
+pub async fn enable_user(user: &User<'_>) -> sqlx::Result<()> {
+    let db_pool = db_pool().await;
+
+    if !user.is_disabled() {
+        return Ok(());
+    }
+
+    sqlx::query!(
+        "UPDATE users SET disabled_at = NULL WHERE disabled_at IS NOT NULL AND id = $1",
+        user.id
+    )
+    .execute(db_pool)
+    .await
+    .map(|_| ())
 }
 
 fn encrypt_password(value: &str) -> String {
@@ -186,12 +231,53 @@ pub async fn get_folder_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Re
     .await
 }
 
+pub async fn get_used_space_by_user(user: &User<'_>) -> ByteSize {
+    let db_pool = db_pool().await;
+
+    sqlx::query!(
+        r#"SELECT SUM(byte_size)::bigint AS "used_space!" FROM files WHERE user_id = $1"#,
+        user.id
+    )
+    .fetch_one(db_pool)
+    .await
+    .map(|row| ByteSize(row.used_space as u64))
+    .unwrap_or_default()
+}
+
 pub async fn get_user_by_id<'a>(id: Uuid) -> sqlx::Result<User<'a>> {
     let db_pool = db_pool().await;
 
     sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1 LIMIT 1", id)
         .fetch_one(db_pool)
         .await
+}
+
+pub async fn get_user_by_user_session_id<'a>(user_session_id: Uuid) -> sqlx::Result<User<'a>> {
+    let db_pool = db_pool().await;
+
+    sqlx::query_as!(
+        User,
+        "SELECT * FROM users WHERE id = (SELECT user_id FROM user_sessions WHERE id = $1 LIMIT 1) LIMIT 1",
+        user_session_id
+    )
+    .fetch_one(db_pool)
+    .await
+}
+
+pub async fn get_user_by_username(username: &str) -> sqlx::Result<User<'_>> {
+    if username.is_empty() {
+        return Err(sqlx::Error::RowNotFound);
+    }
+
+    let db_pool = db_pool().await;
+
+    sqlx::query_as!(
+        User,
+        "SELECT * FROM users WHERE LOWER(username) = $1 LIMIT 1",
+        username.to_lowercase()
+    )
+    .fetch_one(db_pool)
+    .await
 }
 
 pub async fn get_user_session_by_id(id: uuid::Uuid) -> sqlx::Result<UserSession> {
@@ -208,14 +294,15 @@ pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<
     let mut validation_errors = ValidationErrors::new();
     let db_pool = db_pool().await;
 
+    let mut md5_hasher = Md5::new();
+    let mut visibility = FileVisibility::Private;
     let byte_size = input.content.len();
     let file_format = FileFormat::from_bytes(&input.content);
+    let available_space = user.available_space().await;
 
     if file_name_exists(user, input.parent_folder_id, &input.name).await {
         validation_errors.add("name", ERROR_ALREADY_EXISTS.clone());
     }
-
-    let mut visibility = FileVisibility::Private;
 
     if let Some(parent_folder_id) = input.parent_folder_id {
         if let Ok(parent_folder) = get_folder_by_id(parent_folder_id, Some(user)).await {
@@ -225,15 +312,17 @@ pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<
         }
     }
 
-    if !ALLOWED_FILE_FORMATS.contains(&file_format) {
+    let file_size = ByteSize(byte_size as u64);
+
+    if STORAGE_CONFIG.max_size_per_file < file_size || available_space < file_size {
+        validation_errors.add("content", ERROR_IS_TOO_LARGE.clone());
+    } else if !ALLOWED_FILE_FORMATS.contains(&file_format) {
         validation_errors.add("content", ERROR_IS_INVALID.clone());
     }
 
     if !validation_errors.is_empty() {
         return Err(validation_errors);
     }
-
-    let mut md5_hasher = Md5::new();
 
     md5_hasher.update(&input.content);
 
@@ -350,15 +439,17 @@ pub async fn insert_user<'a>(input: &RegisterInput) -> Result<User<'a>, Validati
             display_name,
             full_name,
             birthdate,
-            country_alpha2
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-        input.username,                    // $1
-        input.email.to_lowercase(),        // $2
-        encrypt_password(&input.password), // $3
-        display_name,                      // $4
-        input.full_name,                   // $5
-        birthdate,                         // $6
-        input.country_alpha2,              // $7
+            country_alpha2,
+            total_space_bytes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+        input.username,                               // $1
+        input.email.to_lowercase(),                   // $2
+        encrypt_password(&input.password),            // $3
+        display_name,                                 // $4
+        input.full_name,                              // $5
+        birthdate,                                    // $6
+        input.country_alpha2,                         // $7
+        PRICING_CONFIG.default_quota.as_u64() as i64  // $8
     )
     .fetch_one(db_pool)
     .await
@@ -375,6 +466,23 @@ pub async fn insert_user_session(user: &User<'_>) -> sqlx::Result<UserSession> {
     )
     .fetch_one(db_pool)
     .await
+}
+
+pub async fn update_user_space(user: &User<'_>, total_space: ByteSize) -> sqlx::Result<()> {
+    let db_pool = db_pool().await;
+
+    if !PRICING_CONFIG.quota_range().contains(&total_space) || user.used_space().await > total_space {
+        return Err(sqlx::Error::InvalidArgument("total_space is invalid".to_owned()));
+    }
+
+    sqlx::query!(
+        "UPDATE users SET total_space_bytes = $2 WHERE id = $1",
+        user.id,                     // $1
+        total_space.as_u64() as i64, // $2
+    )
+    .execute(db_pool)
+    .await
+    .map(|_| ())
 }
 
 async fn username_exists(value: &str) -> bool {
@@ -659,6 +767,44 @@ mod tests {
         };
 
         let result = insert_user(&input).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn should_get_used_storage_equal_zero_when_is_empty() {
+        let user = insert_test_user(None).await;
+
+        let used_storage = get_used_space_by_user(&user).await;
+
+        assert_eq!(used_storage, ByteSize(0));
+    }
+
+    #[tokio::test]
+    async fn should_get_used_storage_more_than_zero_after_insert() {
+        let user = insert_test_user(None).await;
+
+        insert_test_files(7, Some(&user)).await;
+
+        let used_storage = get_used_space_by_user(&user).await;
+
+        assert!(used_storage > ByteSize(0));
+    }
+
+    #[tokio::test]
+    async fn should_update_user_space() {
+        let user = insert_test_user(None).await;
+
+        let result = update_user_space(&user, PRICING_CONFIG.max_quota).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_not_update_user_space_when_is_invalid() {
+        let user = insert_test_user(None).await;
+
+        let result = update_user_space(&user, PRICING_CONFIG.max_quota + ByteSize(1)).await;
 
         assert!(result.is_err());
     }

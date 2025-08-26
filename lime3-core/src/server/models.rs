@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use bytesize::{ByteSize, GIB};
 use chrono::{DateTime, NaiveDate, Utc};
 use file_format::FileFormat;
 use image::metadata::Orientation;
@@ -8,6 +9,7 @@ use image::{DynamicImage, ImageDecoder, ImageReader};
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
+use crate::server::commands::get_used_space_by_user;
 
 use super::config::STORAGE_CONFIG;
 use super::constants::ALLOWED_FILE_FORMATS;
@@ -36,12 +38,16 @@ pub struct File<'a> {
 }
 
 impl File<'_> {
+    pub fn cache_directory(&self) -> String {
+        format!("{}/cache/files", STORAGE_CONFIG.path)
+    }
+
     pub fn default_path(&self) -> String {
-        format!("{}/default.{}", self.directory(), self.format().extension())
+        format!("{}/{}.{}", self.directory(), self.id, self.format().extension())
     }
 
     pub fn directory(&self) -> String {
-        format!("{}/files/{}", STORAGE_CONFIG.path, self.id)
+        format!("{}/files", STORAGE_CONFIG.path)
     }
 
     pub fn format(&self) -> &FileFormat {
@@ -82,10 +88,12 @@ impl File<'_> {
                 dynamic_image.apply_orientation(orientation);
 
                 dynamic_image = if fill {
-                    dynamic_image.resize_to_fill(width as u32, height as u32, STORAGE_CONFIG.image_ops_filter_type())
+                    dynamic_image.resize_to_fill(width as u32, height as u32, STORAGE_CONFIG.image_filter_type)
                 } else {
-                    dynamic_image.resize(width as u32, height as u32, STORAGE_CONFIG.image_ops_filter_type())
+                    dynamic_image.resize(width as u32, height as u32, STORAGE_CONFIG.image_filter_type)
                 };
+
+                let _ = std::fs::create_dir_all(self.cache_directory());
 
                 dynamic_image.save(variant_path.clone()).unwrap();
             }
@@ -121,8 +129,9 @@ impl File<'_> {
 
     pub fn variant_path(&self, width: u16, height: u16, fill: bool) -> String {
         format!(
-            "{}/{}x{}{}.{}",
-            self.directory(),
+            "{}/{}_{}x{}{}.{}",
+            self.cache_directory(),
+            self.id,
             width,
             height,
             if fill { "_fill" } else { "" },
@@ -162,6 +171,7 @@ pub struct Folder<'a> {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Clone)]
 pub struct User<'a> {
     pub id: Uuid,
     pub username: Cow<'a, str>,
@@ -172,12 +182,17 @@ pub struct User<'a> {
     pub birthdate: NaiveDate,
     pub language_code: String,
     pub country_alpha2: String,
+    pub total_space_bytes: i64,
     pub disabled_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl User<'_> {
+    pub async fn available_space(&self) -> ByteSize {
+        self.total_space() - self.used_space().await
+    }
+
     pub fn initials(&self) -> String {
         self.display_name
             .split_whitespace()
@@ -189,6 +204,18 @@ impl User<'_> {
     #[allow(dead_code)]
     pub fn is_disabled(&self) -> bool {
         self.disabled_at.is_some()
+    }
+
+    pub fn total_space(&self) -> ByteSize {
+        ByteSize(self.total_space_bytes as u64)
+    }
+
+    pub fn total_space_gib(&self) -> u8 {
+        (self.total_space().as_u64() / GIB).try_into().unwrap()
+    }
+
+    pub async fn used_space(&self) -> ByteSize {
+        get_used_space_by_user(self).await
     }
 
     pub fn verify_password(&self, password: &str) -> bool {

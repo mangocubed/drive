@@ -4,8 +4,9 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-anyhow = { version = "1.0.99", optional = true }
+anyhow = { workspace = true, optional = true }
 axum = { version = "0.8.4", optional = true }
+bytesize = { workspace = true, optional = true }
 cookie = { version = "0.18.1", features = ["private"], optional = true }
 dioxus = { version = "0.7.0-rc.0", features = ["router", "fullstack"] }
 fred = { version = "10.1.0", optional = true }
@@ -18,7 +19,7 @@ time = { version = "0.3.41", optional = true }
 tokio = { workspace = true, optional = true }
 tower-sessions = { version = "0.14.0", features = ["private"], optional = true }
 tower-sessions-redis-store = { version = "0.16.0", optional = true }
-url = { version = "2.5.7", features = ["serde"] }
+url = { workspace = true, features = ["serde"] }
 validator = { workspace = true }
 lime3-core = { workspace = true }
 
@@ -30,6 +31,7 @@ mobile = ["dioxus/mobile"]
 server = [
     "dep:anyhow",
     "dep:axum",
+    "dep:bytesize",
     "dep:cookie",
     "dep:fred",
     "dep:futures",

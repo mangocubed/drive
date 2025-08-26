@@ -1,31 +1,35 @@
+use bytesize::ByteSize;
 use clap::{Arg, Command, value_parser};
 
-const ARG_USERNAME: &str = "username";
-const ARG_EMAIL: &str = "email";
-const ARG_PASSWORD: &str = "password";
-const ARG_FULL_NAME: &str = "full-name";
 const ARG_BIRTHDATE: &str = "birthdate";
 const ARG_COUNTRY: &str = "country";
+const ARG_EMAIL: &str = "email";
+const ARG_FULL_NAME: &str = "full-name";
+const ARG_PASSWORD: &str = "password";
+const ARG_TOTAL_SPACE: &str = "total-space";
+const ARG_USERNAME: &str = "username";
 
 const COMMAND_CREATE_USER: &str = "create-user";
+const COMMAND_DISABLE_USER: &str = "disable-user";
+const COMMAND_ENABLE_USER: &str = "enable-user";
+const COMMAND_SET_USER_SPACE: &str = "set-user-space";
 
 use lime3_core::inputs::RegisterInput;
-use lime3_core::server::commands::insert_user;
+use lime3_core::server::commands::{disable_user, enable_user, get_user_by_username, insert_user, update_user_space};
 
 #[tokio::main]
 async fn main() {
+    let arg_username = Arg::new(ARG_USERNAME)
+        .short('u')
+        .long("username")
+        .value_parser(value_parser!(String));
     let version = env!("CARGO_PKG_VERSION");
     let matches = Command::new("Lime3 CLI")
         .version(version)
         .subcommand(
             Command::new(COMMAND_CREATE_USER)
                 .version(version)
-                .arg(
-                    Arg::new(ARG_USERNAME)
-                        .short('u')
-                        .long("username")
-                        .value_parser(value_parser!(String)),
-                )
+                .arg(arg_username.clone())
                 .arg(
                     Arg::new(ARG_EMAIL)
                         .short('e')
@@ -57,6 +61,27 @@ async fn main() {
                         .value_parser(value_parser!(String)),
                 ),
         )
+        .subcommand(
+            Command::new(COMMAND_DISABLE_USER)
+                .version(version)
+                .arg(arg_username.clone()),
+        )
+        .subcommand(
+            Command::new(COMMAND_ENABLE_USER)
+                .version(version)
+                .arg(arg_username.clone()),
+        )
+        .subcommand(
+            Command::new(COMMAND_SET_USER_SPACE)
+                .version(version)
+                .arg(arg_username.clone())
+                .arg(
+                    Arg::new(ARG_TOTAL_SPACE)
+                        .short('t')
+                        .long(ARG_TOTAL_SPACE)
+                        .value_parser(value_parser!(ByteSize)),
+                ),
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -76,7 +101,7 @@ async fn main() {
             let full_name = matches
                 .get_one::<String>(ARG_FULL_NAME)
                 .cloned()
-                .expect("Could not get argument full name");
+                .expect("Could not get argument full-name");
             let birthdate = matches
                 .get_one::<String>(ARG_BIRTHDATE)
                 .cloned()
@@ -103,6 +128,53 @@ async fn main() {
                 Err(err) => {
                     println!("Failed to create user.\n{err}");
                 }
+            }
+        }
+        Some((COMMAND_DISABLE_USER, matches)) => {
+            let username = matches
+                .get_one::<String>(ARG_USERNAME)
+                .expect("argument username is missing");
+            let user = get_user_by_username(username).await.expect("could not get user");
+            let result = disable_user(&user).await;
+
+            match result {
+                Ok(_) => {
+                    println!("User disabled successfully.")
+                }
+                _ => println!("Failed to disable user."),
+            }
+        }
+        Some((COMMAND_ENABLE_USER, matches)) => {
+            let username = matches
+                .get_one::<String>(ARG_USERNAME)
+                .expect("argument username is missing");
+            let user = get_user_by_username(username).await.expect("could not get user");
+            let result = enable_user(&user).await;
+
+            match result {
+                Ok(_) => {
+                    println!("User enabled successfully.")
+                }
+                _ => println!("Failed to enable user."),
+            }
+        }
+        Some((COMMAND_SET_USER_SPACE, matches)) => {
+            let username = matches
+                .get_one::<String>(ARG_USERNAME)
+                .expect("argument username is missing");
+            let total_space = matches
+                .get_one::<ByteSize>(ARG_TOTAL_SPACE)
+                .expect("argument total-space is missing");
+
+            let user = get_user_by_username(username).await.expect("Could not get user");
+
+            let result = update_user_space(&user, *total_space).await;
+
+            match result {
+                Ok(_) => {
+                    println!("User membership updated successfully.")
+                }
+                _ => println!("Failed to update user membership."),
             }
         }
         _ => {
