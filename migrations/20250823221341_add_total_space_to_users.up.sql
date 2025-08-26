@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN total_space_bytes bigint NOT NULL DEFAULT 1073741824;

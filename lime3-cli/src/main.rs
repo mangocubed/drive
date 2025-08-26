@@ -1,23 +1,21 @@
+use bytesize::ByteSize;
 use clap::{Arg, Command, value_parser};
 
 const ARG_BIRTHDATE: &str = "birthdate";
-const ARG_CODE: &str = "code";
 const ARG_COUNTRY: &str = "country";
 const ARG_EMAIL: &str = "email";
 const ARG_FULL_NAME: &str = "full-name";
-const ARG_IS_ANNUAL: &str = "is-annual";
 const ARG_PASSWORD: &str = "password";
+const ARG_TOTAL_SPACE: &str = "total-space";
 const ARG_USERNAME: &str = "username";
 
 const COMMAND_CREATE_USER: &str = "create-user";
 const COMMAND_DISABLE_USER: &str = "disable-user";
 const COMMAND_ENABLE_USER: &str = "enable-user";
-const COMMAND_SET_USER_MEMBERSHIP: &str = "set-user-membership";
+const COMMAND_SET_USER_SPACE: &str = "set-user-space";
 
 use lime3_core::inputs::RegisterInput;
-use lime3_core::server::commands::{
-    disable_user, enable_user, get_membership_by_code, get_user_by_username, insert_user, update_user_membership,
-};
+use lime3_core::server::commands::{disable_user, enable_user, get_user_by_username, insert_user, update_user_space};
 
 #[tokio::main]
 async fn main() {
@@ -74,21 +72,14 @@ async fn main() {
                 .arg(arg_username.clone()),
         )
         .subcommand(
-            Command::new(COMMAND_SET_USER_MEMBERSHIP)
+            Command::new(COMMAND_SET_USER_SPACE)
                 .version(version)
-                .arg(arg_username)
+                .arg(arg_username.clone())
                 .arg(
-                    Arg::new(ARG_CODE)
-                        .short('c')
-                        .long("code")
-                        .value_parser(value_parser!(String)),
-                )
-                .arg(
-                    Arg::new(ARG_IS_ANNUAL)
-                        .short('a')
-                        .long("is-annual")
-                        .default_value("false")
-                        .value_parser(value_parser!(bool)),
+                    Arg::new(ARG_TOTAL_SPACE)
+                        .short('t')
+                        .long(ARG_TOTAL_SPACE)
+                        .value_parser(value_parser!(ByteSize)),
                 ),
         )
         .get_matches();
@@ -167,18 +158,17 @@ async fn main() {
                 _ => println!("Failed to enable user."),
             }
         }
-        Some((COMMAND_SET_USER_MEMBERSHIP, matches)) => {
+        Some((COMMAND_SET_USER_SPACE, matches)) => {
             let username = matches
                 .get_one::<String>(ARG_USERNAME)
-                .expect("Argument username is missing");
-            let code = matches.get_one::<String>(ARG_CODE).expect("Argument code is missing");
-            let is_annual = matches
-                .get_one::<bool>(ARG_IS_ANNUAL)
-                .expect("Argument is-annual is missing");
-            let user = get_user_by_username(username).await.expect("Could not get user");
-            let membership = get_membership_by_code(code).expect("Could not get membership");
+                .expect("argument username is missing");
+            let total_space = matches
+                .get_one::<ByteSize>(ARG_TOTAL_SPACE)
+                .expect("argument total-space is missing");
 
-            let result = update_user_membership(&user, membership, *is_annual).await;
+            let user = get_user_by_username(username).await.expect("Could not get user");
+
+            let result = update_user_space(&user, *total_space).await;
 
             match result {
                 Ok(_) => {

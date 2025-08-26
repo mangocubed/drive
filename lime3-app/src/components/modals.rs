@@ -1,9 +1,7 @@
 use dioxus::prelude::*;
 
-use crate::{
-    presenters::MembershipPresenter,
-    server_functions::{attempt_to_update_membership, get_available_memberships},
-};
+use crate::server_functions::{attempt_to_update_space, get_pricing};
+use crate::use_current_user;
 
 #[component]
 pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Callback) -> Element {
@@ -35,96 +33,69 @@ pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Ca
 }
 
 #[component]
-fn MembershipCard(
-    is_annual: ReadOnlySignal<bool>,
-    membership: MembershipPresenter,
-    on_success: Callback<()>,
-) -> Element {
-    let navigator = use_navigator();
+pub fn EditSpaceModal(is_open: Signal<bool>, on_success: Callback<()>) -> Element {
+    let current_user = use_current_user();
+    let pricing = use_resource(get_pricing);
+    let mut value_space_gib = use_signal(|| 0);
 
-    rsx! {
-        div { class: "card card-border",
-            div { class: "card-body",
-                h3 { class: "h3", {membership.name.clone()} }
-
-                div { class: "mb-1",
-                    if membership.is_free {
-                        "Free"
-                    } else if is_annual() {
-                        span { class: "text-lg text-nowrap",
-                            {membership.annual_price.clone()}
-                            " / year"
-                        }
-                    } else {
-                        span { class: "text-lg text-nowrap",
-                            {membership.monthly_price.clone()}
-                            " / month"
-                        }
-                    }
-                }
-
-                div { class: "mb-1", {membership.description.clone()} }
-
-                ul { class: "mb-1 list",
-                    li { class: "list-row",
-                        {membership.total_storage.clone()}
-                        " storage"
-                    }
-                    li { class: "list-row",
-                        {membership.max_size_per_file.clone()}
-                        " per file"
-                    }
-                }
-
-                button { class: "btn btn-primary w-full mt-auto", onclick: move |event| {
-                    event.prevent_default();
-
-                    let membership_code = membership.code.clone();
-
-                    async move {
-                        let result = attempt_to_update_membership(membership_code, is_annual()).await;
-
-                        match result {
-                            Ok(Some(checkout_session_url)) => {
-                                navigator.push(checkout_session_url.to_string());
-                            }
-                            Ok(None) => {
-                                on_success.call(());
-                            }
-                            Err(_) => {
-                            }
-                        }
-                    }
-                }, "Select" }
-            }
+    use_effect(move || {
+        if let Some(Some(user)) = &*current_user.read() {
+            *value_space_gib.write() = user.total_space_gib;
         }
-    }
-}
-
-#[component]
-pub fn MembershipsModal(is_open: Signal<bool>, on_success: Callback<()>) -> Element {
-    let available_memberships = use_resource(get_available_memberships);
-    let mut is_annual = use_signal(|| false);
+    });
 
     rsx! {
         Modal { class: "max-w-300", is_open,
-           div { class: "mb-4 flex gap-2 justify-center",
-               a { class: "cursor-pointer", onclick: move |event| { event.prevent_default(); *is_annual.write() = false; }, "Monthly" }
+            h2 { class: "h2", "Edit space" }
 
-               input { checked: is_annual, class: "toggle", onchange: move |event| { *is_annual.write() = event.checked(); }, type: "checkbox" }
+            div { class: "flex gap-2 mb-4",
+                div { class: "grow",
+                    if let Some(Ok(pricing)) = &*pricing.read() {
+                        input {
+                            class: "range w-full mb-1",
+                            min: pricing.free_quota_gib,
+                            max: pricing.max_quota_gib,
+                            oninput: move |event| {
+                                *value_space_gib.write() = event.value().parse().unwrap();
+                            },
+                            step: 1,
+                            r#type: "range",
+                            value: value_space_gib,
+                        }
 
-               a { class: "cursor-pointer", onclick: move |event| { event.prevent_default(); *is_annual.write() = true; }, "Annual" }
-           }
+                        div { class: "flex justify-between",
+                            span {
+                                {pricing.free_quota_gib.to_string()}
+                                " GiB"
+                            }
 
-            div { class: "grid gap-4 sm:grid-cols-2 lg:grid-cols-3",
-                if let Some(Ok(memberships)) = &*available_memberships.read() {
-                    for membership in memberships {
-                        MembershipCard { is_annual, membership: membership.clone(), on_success: move |_| {
-                            *is_annual.write() = false;
-                            on_success.call(());
-                        } }
+                            span {
+                                {pricing.max_quota_gib.to_string()}
+                                " GiB"
+                            }
+                        }
                     }
                 }
+
+                span { class: "font-bold",
+                    {value_space_gib().to_string()}
+                    " GiB"
+                }
+            }
+
+
+            button {
+                class: "btn btn-primary btn-block",
+                onclick: move |event| {
+
+                    event.prevent_default();
+                    async move {
+                        let _ = attempt_to_update_space(value_space_gib()).await;
+                        *is_open.write() = false;
+                        on_success.call(());
+                    }
+                },
+                "Submit"
             }
         }
     }

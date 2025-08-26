@@ -19,8 +19,7 @@ pub static ERROR_IS_INVALID: LazyLock<ValidationError> =
 pub static ERROR_IS_TOO_LARGE: LazyLock<ValidationError> =
     LazyLock::new(|| ValidationError::new("too-large").with_message(Cow::Borrowed("Is too large")));
 
-pub const METADATA_MEMBERSHIP_CODE: &str = "membership_code";
-pub const METADATA_MEMBERSHIP_IS_ANNUAL: &str = "membership_is_annual";
+pub const METADATA_TOTAL_SPACE: &str = "space_quota";
 
 pub static REGEX_FILE_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"\A[^\/:*?"<>|]+\z"#).unwrap());
 pub static REGEX_USERNAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\A[-_.]?([[:alnum:]]+[-_.]?)+\z").unwrap());

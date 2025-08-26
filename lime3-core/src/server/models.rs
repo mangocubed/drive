@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use bytesize::ByteSize;
+use bytesize::{ByteSize, GIB};
 use chrono::{DateTime, NaiveDate, Utc};
 use file_format::FileFormat;
 use image::metadata::Orientation;
@@ -9,9 +9,9 @@ use image::{DynamicImage, ImageDecoder, ImageReader};
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
-use crate::server::commands::{get_membership_by_code, get_used_storage_by_user, get_user_by_id};
+use crate::server::commands::get_used_space_by_user;
 
-use super::config::{MembershipConfig, STORAGE_CONFIG};
+use super::config::STORAGE_CONFIG;
 use super::constants::ALLOWED_FILE_FORMATS;
 
 fn verify_password(encrypted_password: &str, password: &str) -> bool {
@@ -88,9 +88,9 @@ impl File<'_> {
                 dynamic_image.apply_orientation(orientation);
 
                 dynamic_image = if fill {
-                    dynamic_image.resize_to_fill(width as u32, height as u32, STORAGE_CONFIG.image_ops_filter_type())
+                    dynamic_image.resize_to_fill(width as u32, height as u32, STORAGE_CONFIG.image_filter_type)
                 } else {
-                    dynamic_image.resize(width as u32, height as u32, STORAGE_CONFIG.image_ops_filter_type())
+                    dynamic_image.resize(width as u32, height as u32, STORAGE_CONFIG.image_filter_type)
                 };
 
                 let _ = std::fs::create_dir_all(self.cache_directory());
@@ -182,19 +182,15 @@ pub struct User<'a> {
     pub birthdate: NaiveDate,
     pub language_code: String,
     pub country_alpha2: String,
-    pub membership_code: Cow<'a, str>,
-    pub membership_is_annual: bool,
-    pub membership_subscription_id: Option<Uuid>,
-    pub membership_expires_at: Option<DateTime<Utc>>,
-    pub membership_updated_at: Option<DateTime<Utc>>,
+    pub total_space_bytes: i64,
     pub disabled_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl User<'_> {
-    pub async fn available_storage(&self) -> ByteSize {
-        self.membership().total_storage - self.used_storage().await
+    pub async fn available_space(&self) -> ByteSize {
+        self.total_space() - self.used_space().await
     }
 
     pub fn initials(&self) -> String {
@@ -210,12 +206,16 @@ impl User<'_> {
         self.disabled_at.is_some()
     }
 
-    pub fn membership(&self) -> &MembershipConfig {
-        get_membership_by_code(&self.membership_code).unwrap()
+    pub fn total_space(&self) -> ByteSize {
+        ByteSize(self.total_space_bytes as u64)
     }
 
-    pub async fn used_storage(&self) -> ByteSize {
-        get_used_storage_by_user(self).await
+    pub fn total_space_gib(&self) -> u8 {
+        (self.total_space().as_u64() / GIB).try_into().unwrap()
+    }
+
+    pub async fn used_space(&self) -> ByteSize {
+        get_used_space_by_user(self).await
     }
 
     pub fn verify_password(&self, password: &str) -> bool {

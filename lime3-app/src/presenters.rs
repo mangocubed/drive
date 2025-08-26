@@ -6,7 +6,7 @@ use lime3_core::enums::FileVisibility;
 #[cfg(feature = "server")]
 use lime3_core::server::commands::get_folder_by_id;
 #[cfg(feature = "server")]
-use lime3_core::server::config::MembershipConfig;
+use lime3_core::server::config::PricingConfig;
 #[cfg(feature = "server")]
 use lime3_core::server::models::{File, Folder, FolderItem, User};
 
@@ -120,30 +120,22 @@ impl AsyncInto<FolderPresenter> for Folder<'_> {
     }
 }
 
-#[derive(Clone, Deserialize, PartialEq, Serialize)]
-pub struct MembershipPresenter {
-    pub code: String,
-    pub name: String,
-    pub description: String,
-    pub max_size_per_file: String,
-    pub total_storage: String,
-    pub monthly_price: Option<String>,
-    pub annual_price: Option<String>,
-    pub is_free: bool,
+#[derive(Deserialize, Serialize)]
+pub struct PricingPresenter {
+    pub free_quota: String,
+    pub free_quota_gib: u8,
+    pub max_quota: String,
+    pub max_quota_gib: u8,
 }
 
 #[cfg(feature = "server")]
-impl From<&MembershipConfig> for MembershipPresenter {
-    fn from(membership: &MembershipConfig) -> Self {
-        Self {
-            code: membership.code.clone(),
-            name: membership.name.clone(),
-            description: membership.description.clone(),
-            max_size_per_file: membership.max_size_per_file.to_string(),
-            total_storage: membership.total_storage.to_string(),
-            monthly_price: membership.monthly.as_ref().map(|monthly| monthly.price()),
-            annual_price: membership.annual.as_ref().map(|annual| annual.price()),
-            is_free: membership.is_free(),
+impl From<PricingConfig> for PricingPresenter {
+    fn from(config: PricingConfig) -> Self {
+        PricingPresenter {
+            free_quota: config.free_quota.to_string(),
+            free_quota_gib: config.free_quota_gib(),
+            max_quota: config.max_quota.to_string(),
+            max_quota_gib: config.max_quota_gib(),
         }
     }
 }
@@ -154,31 +146,29 @@ pub struct UserPresenter {
     pub username: String,
     pub display_name: String,
     pub initials: String,
-    pub total_storage_bytes: u64,
-    pub used_storage_bytes: u64,
-    pub total_storage: String,
-    pub used_storage: String,
-    pub membership: MembershipPresenter,
-    pub membership_is_annual: bool,
+    pub total_space_bytes: u64,
+    pub used_space_bytes: u64,
+    pub total_space_gib: u8,
+    pub total_space: String,
+    pub used_space: String,
 }
 
 #[cfg(feature = "server")]
 impl AsyncInto<UserPresenter> for User<'_> {
     async fn async_into(&self) -> UserPresenter {
-        let total_storage = self.membership().total_storage;
-        let used_storage = self.used_storage().await;
+        let total_space = self.total_space();
+        let used_space = self.used_space().await;
 
         UserPresenter {
             id: self.id,
             username: self.username.to_string(),
             display_name: self.display_name.to_string(),
             initials: self.initials(),
-            total_storage_bytes: total_storage.as_u64(),
-            used_storage_bytes: used_storage.as_u64(),
-            total_storage: total_storage.to_string(),
-            used_storage: used_storage.to_string(),
-            membership: self.membership().into(),
-            membership_is_annual: self.membership_is_annual,
+            total_space_bytes: total_space.as_u64(),
+            used_space_bytes: used_space.as_u64(),
+            total_space_gib: self.total_space_gib(),
+            total_space: total_space.to_string(),
+            used_space: used_space.to_string(),
         }
     }
 }

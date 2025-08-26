@@ -1,6 +1,5 @@
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
-use url::Url;
 use uuid::Uuid;
 
 #[cfg(feature = "server")]
@@ -13,10 +12,12 @@ use lime3_core::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
 #[cfg(feature = "server")]
 use lime3_core::server::commands::*;
 #[cfg(feature = "server")]
+use lime3_core::server::config::PRICING_CONFIG;
+#[cfg(feature = "server")]
 use lime3_core::server::models::{User, UserSession};
 
 use crate::forms::FormStatus;
-use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, MembershipPresenter, UserPresenter};
+use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, PricingPresenter, UserPresenter};
 use crate::routes::Routes;
 
 #[cfg(feature = "server")]
@@ -142,25 +143,15 @@ pub async fn attempt_to_register(input: RegisterInput) -> ServFnResult<FormStatu
 }
 
 #[server]
-pub async fn attempt_to_update_membership(
-    membership_code: String,
-    membership_is_annual: bool,
-) -> ServFnResult<Option<Url>> {
+pub async fn attempt_to_update_space(total_space_gib: u8) -> ServFnResult<()> {
     require_login().await?;
 
     let user = extract_user().await?.unwrap();
-    let membership = get_membership_by_code(&membership_code).map_err(|err| ServFnError::Other(err.to_string()))?;
 
-    if membership.is_free() {
-        let _ = update_user_membership(&user, membership, false).await;
-
-        return Ok(None);
-    }
-
-    let result = create_checkout_session(&user, membership, membership_is_annual).await;
+    let result = update_user_space(&user, bytesize::ByteSize::gib(total_space_gib.into())).await;
 
     match result {
-        Ok(checkout_session) => Ok(Some(checkout_session.url)),
+        Ok(()) => Ok(()),
         Err(error) => Err(ServFnError::Other(error.to_string()).into()),
     }
 }
@@ -218,18 +209,6 @@ pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResul
 }
 
 #[server]
-pub async fn get_available_memberships() -> ServFnResult<Vec<MembershipPresenter>> {
-    require_login().await?;
-
-    let user = extract_user().await?.unwrap();
-
-    Ok(get_available_memberships_by_user(&user)
-        .iter()
-        .map(|membership| membership.into())
-        .collect())
-}
-
-#[server]
 pub async fn get_current_user() -> ServFnResult<Option<UserPresenter>> {
     let Some(user) = extract_user().await? else {
         return Ok(None);
@@ -266,6 +245,13 @@ pub async fn get_folder(id: Uuid) -> ServFnResult<Option<FolderPresenter>> {
     } else {
         None
     })
+}
+
+#[server]
+pub async fn get_pricing() -> ServFnResult<PricingPresenter> {
+    require_login().await?;
+
+    Ok((*PRICING_CONFIG).into())
 }
 
 #[server]

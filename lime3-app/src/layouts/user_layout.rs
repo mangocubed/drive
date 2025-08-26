@@ -100,13 +100,13 @@ pub fn UserLayout() -> Element {
                                     div { class: "md:hidden text-left", "Storage" }
                                     progress {
                                         class: "progress progress-primary w-full",
-                                        value: user.used_storage_bytes,
-                                        max: user.total_storage_bytes,
+                                        value: user.used_space_bytes,
+                                        max: user.total_space_bytes,
                                     }
                                     div { class: "text-xs text-right",
-                                        {user.used_storage.clone()}
+                                        {user.used_space.clone()}
                                         " of "
-                                        {user.total_storage.clone()}
+                                        {user.total_space.clone()}
                                         " used"
                                     }
                                 }

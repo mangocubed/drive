@@ -5,8 +5,6 @@ use axum::extract::{Path, Query};
 #[cfg(feature = "server")]
 use axum::response::IntoResponse;
 #[cfg(feature = "server")]
-use tower_sessions::Session;
-#[cfg(feature = "server")]
 use uuid::Uuid;
 
 mod components;
@@ -81,7 +79,6 @@ async fn main() {
         .with_secure(SESSION_CONFIG.secure);
 
     let app = axum::Router::new()
-        .route("/checkout-successful", get(get_checkout_successful))
         .route("/storage/files/{id}", get(get_storage_file))
         .serve_dioxus_application(ServeConfig::new().unwrap(), App)
         .layer(session_layer);
@@ -97,21 +94,6 @@ async fn main() {
 #[cfg(not(feature = "server"))]
 fn main() {
     dioxus::launch(App);
-}
-
-#[cfg(feature = "server")]
-async fn get_checkout_successful(Query(query): Query<CheckoutQuery>, session: Session) -> impl IntoResponse {
-    use axum::response::Redirect;
-
-    use crate::server::SessionTrait;
-
-    let Ok(user) = session.user().await else {
-        return Redirect::to("/login");
-    };
-
-    let _ = lime3_core::server::commands::confirm_successful_checkout(query.checkout_id, &user).await;
-
-    Redirect::to("/storage")
 }
 
 #[cfg(feature = "server")]
