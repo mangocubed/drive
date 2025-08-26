@@ -15,7 +15,7 @@ use validator::{Validate, ValidationErrors};
 use crate::enums::FileVisibility;
 use crate::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
 
-use super::config::PRICING_CONFIG;
+use super::config::{PRICING_CONFIG, STORAGE_CONFIG};
 use super::constants::*;
 use super::db_pool;
 use super::models::{File, Folder, FolderItem, User, UserSession};
@@ -298,7 +298,7 @@ pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<
     let mut visibility = FileVisibility::Private;
     let byte_size = input.content.len();
     let file_format = FileFormat::from_bytes(&input.content);
-    let available_storage = user.available_space().await;
+    let available_space = user.available_space().await;
 
     if file_name_exists(user, input.parent_folder_id, &input.name).await {
         validation_errors.add("name", ERROR_ALREADY_EXISTS.clone());
@@ -312,7 +312,9 @@ pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<
         }
     }
 
-    if available_storage < ByteSize(byte_size as u64) {
+    let file_size = ByteSize(byte_size as u64);
+
+    if STORAGE_CONFIG.max_size_per_file < file_size || available_space < file_size {
         validation_errors.add("content", ERROR_IS_TOO_LARGE.clone());
     } else if !ALLOWED_FILE_FORMATS.contains(&file_format) {
         validation_errors.add("content", ERROR_IS_INVALID.clone());
@@ -787,5 +789,23 @@ mod tests {
         let used_storage = get_used_space_by_user(&user).await;
 
         assert!(used_storage > ByteSize(0));
+    }
+
+    #[tokio::test]
+    async fn should_update_user_space() {
+        let user = insert_test_user(None).await;
+
+        let result = update_user_space(&user, PRICING_CONFIG.max_quota).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_not_update_user_space_when_is_invalid() {
+        let user = insert_test_user(None).await;
+
+        let result = update_user_space(&user, PRICING_CONFIG.max_quota + ByteSize(1)).await;
+
+        assert!(result.is_err());
     }
 }
