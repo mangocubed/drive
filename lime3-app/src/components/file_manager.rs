@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use serde_json::Value;
 use uuid::Uuid;
 
 use lime3_core::enums::FileVisibility;
@@ -124,7 +125,7 @@ pub fn FileManager(
 fn NewFolderModal(
     mut is_open: Signal<bool>,
     #[props(default = FileVisibility::Private)] min_visibility: FileVisibility,
-    on_close: Callback,
+    on_close: Callback<Value>,
     parent_folder_id: ReadOnlySignal<Option<Uuid>>,
 ) -> Element {
     use_form_provider(attempt_to_create_folder);

@@ -19,7 +19,7 @@ pub fn RegisterPage() -> Element {
         h1 { class: "h1", "Register" }
 
         FormSuccessModal {
-            on_close: move || {
+            on_close: move |_| {
                 navigator.push(Routes::home());
                 current_user.restart();
             },

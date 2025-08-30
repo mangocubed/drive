@@ -6,9 +6,7 @@ use lime3_core::enums::FileVisibility;
 #[cfg(feature = "server")]
 use lime3_core::server::commands::get_folder_by_id;
 #[cfg(feature = "server")]
-use lime3_core::server::config::PricingConfig;
-#[cfg(feature = "server")]
-use lime3_core::server::models::{File, Folder, FolderItem, User};
+use lime3_core::server::models::{File, Folder, FolderItem, Plan, User};
 
 #[cfg(feature = "server")]
 pub trait AsyncInto<T> {
@@ -121,22 +119,33 @@ impl AsyncInto<FolderPresenter> for Folder<'_> {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct PricingPresenter {
-    pub free_quota: String,
-    pub free_quota_gib: u8,
-    pub max_quota: String,
-    pub max_quota_gib: u8,
+pub struct PlanPresenter {
+    pub id: Uuid,
+    pub name: String,
+    pub description: String,
+    pub quota: String,
+    pub monthly_price: String,
+    pub yearly_price: String,
 }
 
 #[cfg(feature = "server")]
-impl From<PricingConfig> for PricingPresenter {
-    fn from(config: PricingConfig) -> Self {
-        PricingPresenter {
-            free_quota: config.free_quota.to_string(),
-            free_quota_gib: config.free_quota_gib(),
-            max_quota: config.max_quota.to_string(),
-            max_quota_gib: config.max_quota_gib(),
+impl From<&Plan<'_>> for PlanPresenter {
+    fn from(plan: &Plan<'_>) -> Self {
+        PlanPresenter {
+            id: plan.id,
+            name: plan.name.to_string(),
+            description: plan.description.to_string(),
+            quota: plan.quota().to_string(),
+            monthly_price: plan.monthly_price(),
+            yearly_price: plan.yearly_price(),
         }
+    }
+}
+
+#[cfg(feature = "server")]
+impl From<Plan<'_>> for PlanPresenter {
+    fn from(plan: Plan<'_>) -> Self {
+        Self::from(&plan)
     }
 }
 
@@ -148,16 +157,22 @@ pub struct UserPresenter {
     pub initials: String,
     pub total_space_bytes: u64,
     pub used_space_bytes: u64,
-    pub total_space_gib: u8,
     pub total_space: String,
     pub used_space: String,
+    pub plan: Option<PlanPresenter>,
+    pub plan_is_cancelable: bool,
 }
 
 #[cfg(feature = "server")]
 impl AsyncInto<UserPresenter> for User<'_> {
     async fn async_into(&self) -> UserPresenter {
-        let total_space = self.total_space();
-        let used_space = self.used_space().await;
+        let (total_space, used_space, plan, plan_is_cancelable) = futures::future::join4(
+            self.total_space(),
+            self.used_space(),
+            async { self.plan().await.map(|plan| plan.into()) },
+            self.plan_is_cancellable(),
+        )
+        .await;
 
         UserPresenter {
             id: self.id,
@@ -166,9 +181,10 @@ impl AsyncInto<UserPresenter> for User<'_> {
             initials: self.initials(),
             total_space_bytes: total_space.as_u64(),
             used_space_bytes: used_space.as_u64(),
-            total_space_gib: self.total_space_gib(),
             total_space: total_space.to_string(),
             used_space: used_space.to_string(),
+            plan,
+            plan_is_cancelable,
         }
     }
 }

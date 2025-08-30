@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::components::{EditSpaceModal, PageTitle};
+use crate::components::{PageTitle, SubscriptionModal};
 use crate::use_current_user;
 
 #[component]
@@ -25,21 +25,23 @@ pub fn StoragePage() -> Element {
                 {user.total_space.clone()}
                 " used"
             }
-        }
 
-        button {
-            class: "btn btn-primary w-full mt-4",
-            onclick: move |_| {
-                *show_modal.write() = true;
-            },
-            "Edit space"
-        }
+            if user.plan.is_none() {
+                button {
+                    class: "btn btn-primary w-full mt-4",
+                    onclick: move |_| {
+                        *show_modal.write() = true;
+                    },
+                    "Get more space"
+                }
 
-        EditSpaceModal {
-            is_open: show_modal,
-            on_success: move |_| {
-                current_user.restart();
-            },
+                SubscriptionModal {
+                    is_open: show_modal,
+                    on_success: move |_| {
+                        current_user.restart();
+                    },
+                }
+            }
         }
     }
 }

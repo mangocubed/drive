@@ -1,11 +1,7 @@
 use std::fs::File as FsFile;
 use std::io::Write;
 
-use argon2::password_hash::SaltString;
-use argon2::password_hash::rand_core::OsRng;
-use argon2::{Argon2, PasswordHasher};
 use bytesize::ByteSize;
-use chrono::NaiveDate;
 use file_format::FileFormat;
 use md5::{Digest, Md5};
 use strum::IntoEnumIterator;
@@ -13,12 +9,18 @@ use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
 use crate::enums::FileVisibility;
-use crate::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
+use crate::inputs::{FileInput, FolderInput, LoginInput};
 
-use super::config::{PRICING_CONFIG, STORAGE_CONFIG};
+use super::config::STORAGE_CONFIG;
 use super::constants::*;
 use super::db_pool;
 use super::models::{File, Folder, FolderItem, User, UserSession};
+
+mod plan_commands;
+mod user_commands;
+
+pub use plan_commands::*;
+pub use user_commands::*;
 
 pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, ValidationErrors> {
     input.validate()?;
@@ -79,18 +81,6 @@ pub async fn disable_user(user: &User<'_>) -> sqlx::Result<()> {
     Ok(())
 }
 
-async fn email_exists(value: &str) -> bool {
-    let db_pool = db_pool().await;
-
-    sqlx::query!(
-        "SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1",
-        value.to_lowercase() // $1
-    )
-    .fetch_one(db_pool)
-    .await
-    .is_ok()
-}
-
 pub async fn enable_user(user: &User<'_>) -> sqlx::Result<()> {
     let db_pool = db_pool().await;
 
@@ -105,12 +95,6 @@ pub async fn enable_user(user: &User<'_>) -> sqlx::Result<()> {
     .execute(db_pool)
     .await
     .map(|_| ())
-}
-
-fn encrypt_password(value: &str) -> String {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    argon2.hash_password(value.as_bytes(), &salt).unwrap().to_string()
 }
 
 async fn file_name_exists(user: &User<'_>, parent_folder_id: Option<Uuid>, name: &str) -> bool {
@@ -163,7 +147,7 @@ pub async fn get_file_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Resu
 pub async fn get_all_folder_items_by_user<'a>(
     user: &User<'_>,
     parent_folder: Option<&Folder<'_>>,
-) -> Vec<FolderItem<'a>> {
+) -> sqlx::Result<Vec<FolderItem<'a>>> {
     let db_pool = db_pool().await;
     let parent_folder_id = parent_folder.map(|f| f.id);
 
@@ -212,7 +196,6 @@ pub async fn get_all_folder_items_by_user<'a>(
     )
     .fetch_all(db_pool)
     .await
-    .unwrap_or_default()
 }
 
 pub async fn get_folder_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Result<Folder<'a>> {
@@ -314,7 +297,7 @@ pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<
 
     let file_size = ByteSize(byte_size as u64);
 
-    if STORAGE_CONFIG.max_size_per_file < file_size || available_space < file_size {
+    if STORAGE_CONFIG.max_size_per_file() < file_size || available_space < file_size {
         validation_errors.add("content", ERROR_IS_TOO_LARGE.clone());
     } else if !ALLOWED_FILE_FORMATS.contains(&file_format) {
         validation_errors.add("content", ERROR_IS_INVALID.clone());
@@ -409,53 +392,6 @@ pub async fn insert_folder<'a>(user: &User<'_>, input: &FolderInput) -> Result<F
     .map_err(|_| ValidationErrors::new())
 }
 
-pub async fn insert_user<'a>(input: &RegisterInput) -> Result<User<'a>, ValidationErrors> {
-    input.validate()?;
-
-    let mut validation_errors = ValidationErrors::new();
-
-    if username_exists(&input.username).await {
-        validation_errors.add("username", ERROR_ALREADY_EXISTS.clone());
-    }
-
-    if email_exists(&input.email).await {
-        validation_errors.add("email", ERROR_ALREADY_EXISTS.clone());
-    }
-
-    if !validation_errors.is_empty() {
-        return Err(validation_errors);
-    }
-
-    let db_pool = db_pool().await;
-    let display_name = input.full_name.split(' ').next().unwrap();
-    let birthdate = NaiveDate::parse_from_str(&input.birthdate, "%Y-%m-%d").unwrap();
-
-    sqlx::query_as!(
-        User,
-        "INSERT INTO users (
-            username,
-            email,
-            encrypted_password,
-            display_name,
-            full_name,
-            birthdate,
-            country_alpha2,
-            total_space_bytes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
-        input.username,                               // $1
-        input.email.to_lowercase(),                   // $2
-        encrypt_password(&input.password),            // $3
-        display_name,                                 // $4
-        input.full_name,                              // $5
-        birthdate,                                    // $6
-        input.country_alpha2,                         // $7
-        PRICING_CONFIG.default_quota.as_u64() as i64  // $8
-    )
-    .fetch_one(db_pool)
-    .await
-    .map_err(|_| ValidationErrors::new())
-}
-
 pub async fn insert_user_session(user: &User<'_>) -> sqlx::Result<UserSession> {
     let db_pool = db_pool().await;
 
@@ -466,35 +402,6 @@ pub async fn insert_user_session(user: &User<'_>) -> sqlx::Result<UserSession> {
     )
     .fetch_one(db_pool)
     .await
-}
-
-pub async fn update_user_space(user: &User<'_>, total_space: ByteSize) -> sqlx::Result<()> {
-    let db_pool = db_pool().await;
-
-    if !PRICING_CONFIG.quota_range().contains(&total_space) || user.used_space().await > total_space {
-        return Err(sqlx::Error::InvalidArgument("total_space is invalid".to_owned()));
-    }
-
-    sqlx::query!(
-        "UPDATE users SET total_space_bytes = $2 WHERE id = $1",
-        user.id,                     // $1
-        total_space.as_u64() as i64, // $2
-    )
-    .execute(db_pool)
-    .await
-    .map(|_| ())
-}
-
-async fn username_exists(value: &str) -> bool {
-    let db_pool = db_pool().await;
-
-    sqlx::query!(
-        "SELECT id FROM users WHERE LOWER(username) = $1 LIMIT 1",
-        value.to_lowercase()
-    )
-    .fetch_one(db_pool)
-    .await
-    .is_ok()
 }
 
 #[cfg(test)]
@@ -530,39 +437,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_find_existing_email() {
-        let user = insert_test_user(None).await;
-
-        assert!(email_exists(&user.email).await);
-    }
-
-    #[tokio::test]
-    async fn should_not_find_inexistent_email() {
-        let email = fake_email();
-        assert!(!email_exists(&email).await);
-    }
-
-    #[tokio::test]
-    async fn should_find_an_existing_username() {
-        let user = insert_test_user(None).await;
-
-        assert!(username_exists(&user.username).await);
-    }
-
-    #[tokio::test]
-    async fn should_not_find_inexistent_username() {
-        let username = fake_username();
-
-        assert!(!username_exists(&username).await);
-    }
-
-    #[tokio::test]
     async fn should_get_seven_folders_by_user() {
         let user = insert_test_user(None).await;
 
         insert_test_folders(7, Some(&user), None).await;
 
-        let folders = get_all_folder_items_by_user(&user, None).await;
+        let result = get_all_folder_items_by_user(&user, None).await;
+
+        assert!(result.is_ok());
+
+        let folders = result.unwrap();
 
         assert_eq!(folders.len(), 7);
     }
@@ -574,7 +458,11 @@ mod tests {
 
         insert_test_folders(7, Some(&user), Some(&parent_folder)).await;
 
-        let folders = get_all_folder_items_by_user(&user, Some(&parent_folder)).await;
+        let result = get_all_folder_items_by_user(&user, Some(&parent_folder)).await;
+
+        assert!(result.is_ok());
+
+        let folders = result.unwrap();
 
         assert_eq!(folders.len(), 7);
     }
@@ -582,7 +470,12 @@ mod tests {
     #[tokio::test]
     async fn should_get_zero_folders_by_user() {
         let user = insert_test_user(None).await;
-        let folders = get_all_folder_items_by_user(&user, None).await;
+
+        let result = get_all_folder_items_by_user(&user, None).await;
+
+        assert!(result.is_ok());
+
+        let folders = result.unwrap();
 
         assert_eq!(folders.len(), 0);
     }
@@ -714,64 +607,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_insert_a_user() {
-        let input = RegisterInput {
-            username: fake_username(),
-            email: fake_email(),
-            password: fake_password(),
-            full_name: fake_name(),
-            birthdate: fake_birthdate(),
-            country_alpha2: fake_country_alpha2(),
-        };
-
-        let result = insert_user(&input).await;
-
-        assert!(result.is_ok());
-
-        let user = result.unwrap();
-
-        assert_eq!(user.username, input.username);
-        assert_eq!(user.email, input.email);
-        assert_eq!(user.full_name, input.full_name);
-        assert_eq!(user.birthdate.to_string(), input.birthdate);
-        assert_eq!(user.country_alpha2, input.country_alpha2);
-    }
-
-    #[tokio::test]
-    async fn should_not_insert_a_user_with_existent_username() {
-        let user = insert_test_user(None).await;
-        let input = RegisterInput {
-            username: user.username.to_string(),
-            email: fake_email(),
-            password: fake_password(),
-            full_name: fake_name(),
-            birthdate: fake_birthdate(),
-            country_alpha2: fake_country_alpha2(),
-        };
-
-        let result = insert_user(&input).await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn should_not_insert_a_user_with_existent_email() {
-        let user = insert_test_user(None).await;
-        let input = RegisterInput {
-            username: fake_username(),
-            email: user.email.to_string(),
-            password: fake_password(),
-            full_name: fake_name(),
-            birthdate: fake_birthdate(),
-            country_alpha2: fake_country_alpha2(),
-        };
-
-        let result = insert_user(&input).await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
     async fn should_get_used_storage_equal_zero_when_is_empty() {
         let user = insert_test_user(None).await;
 
@@ -789,23 +624,5 @@ mod tests {
         let used_storage = get_used_space_by_user(&user).await;
 
         assert!(used_storage > ByteSize(0));
-    }
-
-    #[tokio::test]
-    async fn should_update_user_space() {
-        let user = insert_test_user(None).await;
-
-        let result = update_user_space(&user, PRICING_CONFIG.max_quota).await;
-
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn should_not_update_user_space_when_is_invalid() {
-        let user = insert_test_user(None).await;
-
-        let result = update_user_space(&user, PRICING_CONFIG.max_quota + ByteSize(1)).await;
-
-        assert!(result.is_err());
     }
 }

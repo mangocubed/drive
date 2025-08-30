@@ -8,7 +8,7 @@ mod file_manager;
 mod modals;
 
 pub use file_manager::FileManager;
-pub use modals::{ConfirmationModal, EditSpaceModal, Modal};
+pub use modals::{ConfirmationModal, Modal, SubscriptionModal};
 
 #[component]
 pub fn LoggedIn(children: Element) -> Element {
