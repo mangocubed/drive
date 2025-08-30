@@ -1,21 +1,32 @@
-use bytesize::ByteSize;
 use clap::{Arg, Command, value_parser};
 
 const ARG_BIRTHDATE: &str = "birthdate";
 const ARG_COUNTRY: &str = "country";
+const ARG_DESCRIPTION: &str = "description";
 const ARG_EMAIL: &str = "email";
 const ARG_FULL_NAME: &str = "full-name";
+const ARG_MONTHLY_PRICE_CENTS: &str = "monthly-price-cents";
+const ARG_NAME: &str = "name";
 const ARG_PASSWORD: &str = "password";
-const ARG_TOTAL_SPACE: &str = "total-space";
+const ARG_PLAN_ID: &str = "plan-id";
+const ARG_QUOTA_GIB: &str = "quota-gib";
 const ARG_USERNAME: &str = "username";
+const ARG_YEARLY_PRICE_CENTS: &str = "yearly-price-cents";
 
+const COMMAND_CREATE_PLAN: &str = "create-plan";
 const COMMAND_CREATE_USER: &str = "create-user";
 const COMMAND_DISABLE_USER: &str = "disable-user";
 const COMMAND_ENABLE_USER: &str = "enable-user";
-const COMMAND_SET_USER_SPACE: &str = "set-user-space";
+const COMMAND_LIST_PLANS: &str = "list-plans";
+const COMMAND_SET_USER_PLAN: &str = "set-user-plan";
 
 use lime3_core::inputs::RegisterInput;
-use lime3_core::server::commands::{disable_user, enable_user, get_user_by_username, insert_user, update_user_space};
+use lime3_core::server::commands::{
+    disable_user, enable_user, get_all_plans, get_plan_by_id, get_user_by_username, insert_plan, insert_user,
+    update_user_plan,
+};
+use serde_json::to_string_pretty;
+use uuid::Uuid;
 
 #[tokio::main]
 async fn main() {
@@ -26,6 +37,40 @@ async fn main() {
     let version = env!("CARGO_PKG_VERSION");
     let matches = Command::new("Lime3 CLI")
         .version(version)
+        .subcommand(
+            Command::new(COMMAND_CREATE_PLAN)
+                .version(version)
+                .arg(
+                    Arg::new(ARG_NAME)
+                        .short('n')
+                        .long(ARG_NAME)
+                        .value_parser(value_parser!(String)),
+                )
+                .arg(
+                    Arg::new(ARG_DESCRIPTION)
+                        .short('d')
+                        .long(ARG_DESCRIPTION)
+                        .value_parser(value_parser!(String)),
+                )
+                .arg(
+                    Arg::new(ARG_QUOTA_GIB)
+                        .short('q')
+                        .long(ARG_QUOTA_GIB)
+                        .value_parser(value_parser!(u8)),
+                )
+                .arg(
+                    Arg::new(ARG_MONTHLY_PRICE_CENTS)
+                        .short('m')
+                        .long(ARG_MONTHLY_PRICE_CENTS)
+                        .value_parser(value_parser!(u8)),
+                )
+                .arg(
+                    Arg::new(ARG_YEARLY_PRICE_CENTS)
+                        .short('y')
+                        .long(ARG_YEARLY_PRICE_CENTS)
+                        .value_parser(value_parser!(u16)),
+                ),
+        )
         .subcommand(
             Command::new(COMMAND_CREATE_USER)
                 .version(version)
@@ -71,20 +116,50 @@ async fn main() {
                 .version(version)
                 .arg(arg_username.clone()),
         )
+        .subcommand(Command::new(COMMAND_LIST_PLANS).version(version))
         .subcommand(
-            Command::new(COMMAND_SET_USER_SPACE)
+            Command::new(COMMAND_SET_USER_PLAN)
                 .version(version)
                 .arg(arg_username.clone())
                 .arg(
-                    Arg::new(ARG_TOTAL_SPACE)
-                        .short('t')
-                        .long(ARG_TOTAL_SPACE)
-                        .value_parser(value_parser!(ByteSize)),
+                    Arg::new(ARG_PLAN_ID)
+                        .short('p')
+                        .long(ARG_PLAN_ID)
+                        .value_parser(value_parser!(Uuid)),
                 ),
         )
         .get_matches();
 
     match matches.subcommand() {
+        Some((COMMAND_CREATE_PLAN, matches)) => {
+            let name = matches
+                .get_one::<String>(ARG_NAME)
+                .cloned()
+                .expect("Could not get argument name");
+            let description = matches
+                .get_one::<String>(ARG_DESCRIPTION)
+                .cloned()
+                .expect("Could not get argument description");
+            let quota_gib = matches
+                .get_one::<u8>(ARG_QUOTA_GIB)
+                .cloned()
+                .expect("Could not get argument quota-gib");
+            let monthly_price_cents = matches
+                .get_one::<u8>(ARG_MONTHLY_PRICE_CENTS)
+                .cloned()
+                .expect("Could not get argument monthly-price-cents");
+            let yearly_price_cents = matches
+                .get_one::<u16>(ARG_YEARLY_PRICE_CENTS)
+                .cloned()
+                .expect("Could not get argument yearly-price-cents");
+
+            let result = insert_plan(&name, &description, quota_gib, monthly_price_cents, yearly_price_cents).await;
+
+            match result {
+                Ok(_) => println!("Plan created successfully."),
+                Err(err) => println!("Failed to create plan.\n{err}"),
+            }
+        }
         Some((COMMAND_CREATE_USER, matches)) => {
             let username = matches
                 .get_one::<String>(ARG_USERNAME)
@@ -122,12 +197,8 @@ async fn main() {
             .await;
 
             match result {
-                Ok(_) => {
-                    println!("User created successfully.");
-                }
-                Err(err) => {
-                    println!("Failed to create user.\n{err}");
-                }
+                Ok(_) => println!("User created successfully."),
+                Err(err) => println!("Failed to create user.\n{err}"),
             }
         }
         Some((COMMAND_DISABLE_USER, matches)) => {
@@ -138,9 +209,7 @@ async fn main() {
             let result = disable_user(&user).await;
 
             match result {
-                Ok(_) => {
-                    println!("User disabled successfully.")
-                }
+                Ok(_) => println!("User disabled successfully."),
                 _ => println!("Failed to disable user."),
             }
         }
@@ -152,33 +221,36 @@ async fn main() {
             let result = enable_user(&user).await;
 
             match result {
-                Ok(_) => {
-                    println!("User enabled successfully.")
-                }
+                Ok(_) => println!("User enabled successfully."),
                 _ => println!("Failed to enable user."),
             }
         }
-        Some((COMMAND_SET_USER_SPACE, matches)) => {
+        Some((COMMAND_LIST_PLANS, _)) => {
+            let result = get_all_plans().await;
+
+            match result {
+                Ok(plans) => println!("{}", to_string_pretty(&plans).expect("Failed to serialize plans")),
+                _ => println!("Failed to get plans."),
+            }
+        }
+        Some((COMMAND_SET_USER_PLAN, matches)) => {
             let username = matches
                 .get_one::<String>(ARG_USERNAME)
                 .expect("argument username is missing");
-            let total_space = matches
-                .get_one::<ByteSize>(ARG_TOTAL_SPACE)
-                .expect("argument total-space is missing");
+            let plan_id = matches
+                .get_one::<Uuid>(ARG_PLAN_ID)
+                .expect("argument plan-id is missing");
 
             let user = get_user_by_username(username).await.expect("Could not get user");
+            let plan = get_plan_by_id(*plan_id).await.expect("Could not get plan");
 
-            let result = update_user_space(&user, *total_space).await;
+            let result = update_user_plan(&user, &plan).await;
 
             match result {
-                Ok(_) => {
-                    println!("User membership updated successfully.")
-                }
-                _ => println!("Failed to update user membership."),
+                Ok(_) => println!("User plan updated successfully."),
+                _ => println!("Failed to update user plan."),
             }
         }
-        _ => {
-            println!("Nothing to do.");
-        }
+        _ => println!("Nothing to do."),
     }
 }

@@ -1,11 +1,11 @@
-use std::ops::RangeInclusive;
 use std::sync::LazyLock;
 
-use bytesize::{ByteSize, GIB};
+use bytesize::ByteSize;
 use figment::Figment;
 use figment::providers::{Env, Serialized};
 use image::imageops::FilterType;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 fn extract_from_env<'a, T>(prefix: &str) -> T
 where
@@ -18,9 +18,10 @@ where
 }
 
 pub(crate) static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_from_env("DATABASE_"));
-pub static PRICING_CONFIG: LazyLock<PricingConfig> = LazyLock::new(|| extract_from_env("PRICING_"));
+pub(crate) static POLAR_CONFIG: LazyLock<PolarConfig> = LazyLock::new(|| extract_from_env("POLAR_"));
 pub static SESSION_CONFIG: LazyLock<SessionConfig> = LazyLock::new(|| extract_from_env("SESSION_"));
 pub(crate) static STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| extract_from_env("STORAGE_"));
+pub(crate) static USERS_CONFIG: LazyLock<UsersConfig> = LazyLock::new(|| extract_from_env("USERS_"));
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct DatabaseConfig {
@@ -39,34 +40,20 @@ impl Default for DatabaseConfig {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize)]
-pub struct PricingConfig {
-    pub default_quota: ByteSize,
-    pub free_quota: ByteSize,
-    pub max_quota: ByteSize,
+#[derive(Deserialize, Serialize)]
+pub(crate) struct PolarConfig {
+    pub base_url: Url,
+    pub access_token: String,
+    pub success_base_url: Url,
 }
 
-impl Default for PricingConfig {
+impl Default for PolarConfig {
     fn default() -> Self {
         Self {
-            default_quota: ByteSize::gib(1),
-            free_quota: ByteSize::gib(1),
-            max_quota: ByteSize::gib(10),
+            base_url: "https://sandbox-api.polar.sh/v1/".parse().unwrap(),
+            access_token: "".to_owned(),
+            success_base_url: "http://127.0.0.1:8080/".parse().unwrap(),
         }
-    }
-}
-
-impl PricingConfig {
-    pub fn free_quota_gib(&self) -> u8 {
-        (self.free_quota.as_u64() / GIB).try_into().unwrap()
-    }
-
-    pub fn max_quota_gib(&self) -> u8 {
-        (self.max_quota.as_u64() / GIB).try_into().unwrap()
-    }
-
-    pub fn quota_range(&self) -> RangeInclusive<ByteSize> {
-        self.free_quota..=self.max_quota
     }
 }
 
@@ -96,7 +83,7 @@ impl Default for SessionConfig {
 #[derive(Deserialize, Serialize)]
 pub(crate) struct StorageConfig {
     pub image_filter_type: FilterType,
-    pub max_size_per_file: ByteSize,
+    pub max_size_gib_per_file: u8,
     pub path: String,
 }
 
@@ -104,11 +91,38 @@ impl Default for StorageConfig {
     fn default() -> Self {
         Self {
             image_filter_type: FilterType::CatmullRom,
-            max_size_per_file: ByteSize::mib(100),
+            max_size_gib_per_file: 1,
             #[cfg(not(test))]
             path: "./storage".to_owned(),
             #[cfg(test)]
             path: "./storage/tests".to_owned(),
         }
+    }
+}
+
+impl StorageConfig {
+    pub fn max_size_per_file(&self) -> ByteSize {
+        ByteSize::gib(self.max_size_gib_per_file as u64)
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+pub(crate) struct UsersConfig {
+    pub free_quota_gib: u8,
+    pub limit: u8,
+}
+
+impl Default for UsersConfig {
+    fn default() -> Self {
+        Self {
+            free_quota_gib: 5,
+            limit: 10,
+        }
+    }
+}
+
+impl UsersConfig {
+    pub fn free_quota(&self) -> ByteSize {
+        ByteSize::gib(self.free_quota_gib as u64)
     }
 }

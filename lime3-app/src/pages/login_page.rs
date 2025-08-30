@@ -19,7 +19,7 @@ pub fn LoginPage() -> Element {
         h1 { class: "h1", "Login" }
 
         FormSuccessModal {
-            on_close: move |()| {
+            on_close: move |_| {
                 navigator.push(Routes::home());
                 current_user.restart();
             },

@@ -1,15 +1,17 @@
 use std::borrow::Cow;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use bytesize::{ByteSize, GIB};
+use bytesize::ByteSize;
 use chrono::{DateTime, NaiveDate, Utc};
 use file_format::FileFormat;
 use image::metadata::Orientation;
 use image::{DynamicImage, ImageDecoder, ImageReader};
+use serde::Serialize;
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
-use crate::server::commands::get_used_space_by_user;
+use crate::server::commands::{get_plan_by_id, get_used_space_by_user};
+use crate::server::config::USERS_CONFIG;
 
 use super::config::STORAGE_CONFIG;
 use super::constants::ALLOWED_FILE_FORMATS;
@@ -171,18 +173,48 @@ pub struct Folder<'a> {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Serialize)]
+pub struct Plan<'a> {
+    pub id: Uuid,
+    pub name: Cow<'a, str>,
+    pub description: Cow<'a, str>,
+    pub quota_gib: i16,
+    pub monthly_price_cents: i16,
+    pub yearly_price_cents: i16,
+    pub polar_monthly_product_id: Uuid,
+    pub polar_yearly_product_id: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl Plan<'_> {
+    pub fn quota(&self) -> ByteSize {
+        ByteSize::gib(self.quota_gib as u64)
+    }
+
+    pub fn monthly_price(&self) -> String {
+        format!("$ {:.2} USD", self.monthly_price_cents as f32 / 100.0)
+    }
+
+    pub fn yearly_price(&self) -> String {
+        format!("$ {:.2} USD", self.yearly_price_cents as f32 / 100.0)
+    }
+}
+
 #[derive(Clone)]
 pub struct User<'a> {
     pub id: Uuid,
+    pub plan_id: Option<Uuid>,
     pub username: Cow<'a, str>,
     pub email: Cow<'a, str>,
     pub encrypted_password: Cow<'a, str>,
-    pub display_name: String,
-    pub full_name: String,
+    pub display_name: Cow<'a, str>,
+    pub full_name: Cow<'a, str>,
     pub birthdate: NaiveDate,
-    pub language_code: String,
-    pub country_alpha2: String,
-    pub total_space_bytes: i64,
+    pub language_code: Cow<'a, str>,
+    pub country_alpha2: Cow<'a, str>,
+    pub polar_subscription_id: Option<Uuid>,
+    pub plan_expires_at: Option<DateTime<Utc>>,
     pub disabled_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -190,7 +222,7 @@ pub struct User<'a> {
 
 impl User<'_> {
     pub async fn available_space(&self) -> ByteSize {
-        self.total_space() - self.used_space().await
+        self.total_space().await - self.used_space().await
     }
 
     pub fn initials(&self) -> String {
@@ -206,12 +238,26 @@ impl User<'_> {
         self.disabled_at.is_some()
     }
 
-    pub fn total_space(&self) -> ByteSize {
-        ByteSize(self.total_space_bytes as u64)
+    pub async fn plan(&self) -> Option<Plan<'_>> {
+        if let Some(plan_id) = self.plan_id
+            && self.plan_expires_at.is_some_and(|expires_at| expires_at > Utc::now())
+        {
+            Some(get_plan_by_id(plan_id).await.expect("Could not get plan"))
+        } else {
+            None
+        }
     }
 
-    pub fn total_space_gib(&self) -> u8 {
-        (self.total_space().as_u64() / GIB).try_into().unwrap()
+    pub async fn plan_is_cancellable(&self) -> bool {
+        self.polar_subscription_id.is_some() && self.used_space().await <= USERS_CONFIG.free_quota()
+    }
+
+    pub async fn total_space(&self) -> ByteSize {
+        if let Some(plan) = self.plan().await {
+            plan.quota()
+        } else {
+            USERS_CONFIG.free_quota()
+        }
     }
 
     pub async fn used_space(&self) -> ByteSize {

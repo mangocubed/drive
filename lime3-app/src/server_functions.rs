@@ -1,7 +1,10 @@
 use dioxus::prelude::*;
 use serde::{Deserialize, Serialize};
+use url::Url;
 use uuid::Uuid;
 
+#[cfg(feature = "server")]
+use serde_json::Value;
 #[cfg(feature = "server")]
 use tower_sessions::Session;
 #[cfg(feature = "server")]
@@ -12,12 +15,10 @@ use lime3_core::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
 #[cfg(feature = "server")]
 use lime3_core::server::commands::*;
 #[cfg(feature = "server")]
-use lime3_core::server::config::PRICING_CONFIG;
-#[cfg(feature = "server")]
 use lime3_core::server::models::{User, UserSession};
 
 use crate::forms::FormStatus;
-use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, PricingPresenter, UserPresenter};
+use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, PlanPresenter, UserPresenter};
 use crate::routes::Routes;
 
 #[cfg(feature = "server")]
@@ -31,6 +32,8 @@ pub enum ServFnError {
     NoLoginRequired,
     Other(String),
 }
+
+pub type ServFnResult<T = ()> = ServerFnResult<T, ServFnError>;
 
 #[cfg(feature = "server")]
 impl From<ServFnError> for ServerFnError<ServFnError> {
@@ -55,7 +58,19 @@ impl ServFnError {
     }
 }
 
-pub type ServFnResult<T = ()> = ServerFnResult<T, ServFnError>;
+#[server]
+pub async fn attempt_to_confirm_plan_checkout(checkout_id: Uuid) -> ServFnResult<String> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+
+    let result = confirm_user_plan_checkout(&user, checkout_id).await;
+
+    match result {
+        Ok(_) => Ok("Subscription upgraded successfully".to_owned()),
+        Err(errors) => Err(ServFnError::Other(errors.to_string()).into()),
+    }
+}
 
 #[server]
 pub async fn attempt_to_create_folder(input: FolderInput) -> ServFnResult<FormStatus> {
@@ -66,7 +81,10 @@ pub async fn attempt_to_create_folder(input: FolderInput) -> ServFnResult<FormSt
     let result = insert_folder(&user, &input).await;
 
     match result {
-        Ok(_) => Ok(FormStatus::Success("Folder created successfully".to_owned())),
+        Ok(_) => Ok(FormStatus::Success(
+            "Folder created successfully".to_owned(),
+            Value::Null,
+        )),
         Err(errors) => Ok(FormStatus::Failed("Failed to create folder".to_owned(), errors)),
     }
 }
@@ -94,7 +112,10 @@ pub async fn attempt_to_login(input: LoginInput) -> ServFnResult<FormStatus> {
 
             let _ = session.set_user_session(user_session).await;
 
-            Ok(FormStatus::Success("User authenticated successfully".to_owned()))
+            Ok(FormStatus::Success(
+                "User authenticated successfully".to_owned(),
+                Value::Null,
+            ))
         }
         Err(_) => Ok(FormStatus::Failed(
             "Failed to authenticate user".to_owned(),
@@ -136,22 +157,25 @@ pub async fn attempt_to_register(input: RegisterInput) -> ServFnResult<FormStatu
                 let _ = session.set_user_session(user_session).await;
             }
 
-            Ok(FormStatus::Success("User created successfully".to_owned()))
+            Ok(FormStatus::Success("User created successfully".to_owned(), Value::Null))
         }
         Err(errors) => Ok(FormStatus::Failed("Failed to create user".to_owned(), errors)),
     }
 }
 
 #[server]
-pub async fn attempt_to_update_space(total_space_gib: u8) -> ServFnResult<()> {
+pub async fn attempt_to_create_plan_checkout(plan_id: Uuid, is_yearly: bool) -> ServFnResult<Url> {
     require_login().await?;
 
     let user = extract_user().await?.unwrap();
+    let plan = get_plan_by_id(plan_id)
+        .await
+        .map_err(|_| ServFnError::Other("Could not get plan".to_owned()))?;
 
-    let result = update_user_space(&user, bytesize::ByteSize::gib(total_space_gib.into())).await;
+    let result = create_user_plan_checkout(&user, &plan, is_yearly).await;
 
     match result {
-        Ok(()) => Ok(()),
+        Ok(checkout) => Ok(checkout.url),
         Err(error) => Err(ServFnError::Other(error.to_string()).into()),
     }
 }
@@ -203,7 +227,9 @@ pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResul
     } else {
         None
     };
-    let folder_items = get_all_folder_items_by_user(&user, parent_folder.as_ref()).await;
+    let folder_items = get_all_folder_items_by_user(&user, parent_folder.as_ref())
+        .await
+        .map_err(|_| ServFnError::Other("Could not get folders".to_owned()))?;
 
     Ok(futures::future::join_all(folder_items.iter().map(|folder_item| folder_item.async_into())).await)
 }
@@ -248,10 +274,15 @@ pub async fn get_folder(id: Uuid) -> ServFnResult<Option<FolderPresenter>> {
 }
 
 #[server]
-pub async fn get_pricing() -> ServFnResult<PricingPresenter> {
+pub async fn get_all_available_plans() -> ServFnResult<Vec<PlanPresenter>> {
     require_login().await?;
 
-    Ok((*PRICING_CONFIG).into())
+    Ok(get_all_plans()
+        .await
+        .map_err(|_| ServFnError::Other("Could not get plans".to_owned()))?
+        .iter()
+        .map(|plan| plan.into())
+        .collect())
 }
 
 #[server]

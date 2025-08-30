@@ -14,7 +14,7 @@ use crate::server_functions::ServFnResult;
 #[derive(Clone, PartialEq)]
 pub struct FormProvider {
     action: Callback<HashMap<String, FormValue>>,
-    status: ReadOnlySignal<FormStatus>,
+    pub status: ReadOnlySignal<FormStatus>,
 }
 
 impl FormProvider {
@@ -28,7 +28,7 @@ pub enum FormStatus {
     #[default]
     Nothing,
     Pending,
-    Success(String),
+    Success(String, Value),
     Failed(String, ValidationErrors),
 }
 
@@ -70,12 +70,12 @@ pub fn use_form_provider<
     let action = use_callback(move |input: HashMap<String, FormValue>| {
         *status.write() = FormStatus::Pending;
 
-        let input = serde_json::from_value(Value::Object(
+        let input = serde_json::from_value(
             input
                 .iter()
-                .map(|(name, value)| (name.clone(), Value::String(value.as_value())))
+                .map(|(name, value)| (name.clone(), value.as_value()))
                 .collect(),
-        ))
+        )
         .expect("Could not get input");
 
         spawn(async move {
@@ -100,12 +100,12 @@ pub fn use_form_provider<
 }
 
 #[component]
-pub fn Form(children: Element, #[props(optional)] on_success: Callback) -> Element {
+pub fn Form(children: Element, #[props(optional)] on_success: Callback<Value>) -> Element {
     let form_context = use_form_context();
 
     use_effect(move || {
-        if let FormStatus::Success(_) = &*form_context.status.read() {
-            on_success.call(())
+        if let FormStatus::Success(_, data) = &*form_context.status.read() {
+            on_success.call(data.clone())
         }
     });
 
@@ -161,22 +161,25 @@ pub fn FormField(children: Element, error: Memo<Option<String>>, label: String) 
 }
 
 #[component]
-pub fn FormSuccessModal(#[props(optional)] on_close: Callback<()>) -> Element {
+pub fn FormSuccessModal(#[props(optional)] on_close: Callback<Value>) -> Element {
     let form_context = use_form_context();
     let mut is_open = use_signal(|| true);
 
     rsx! {
-        if let FormStatus::Success(message) = &*form_context.status.read() {
+        if let FormStatus::Success(message, data) = &*form_context.status.read() {
             Modal { is_open, is_closable: false,
                 {message.clone()}
 
                 div { class: "modal-action",
                     button {
                         class: "btn btn-primary",
-                        onclick: move |event| {
-                            event.prevent_default();
-                            on_close.call(());
-                            *is_open.write() = false;
+                        onclick: {
+                            let data = data.clone();
+                            move |event| {
+                                event.prevent_default();
+                                on_close.call(data.clone());
+                                *is_open.write() = false;
+                            }
                         },
                         "Ok"
                     }
