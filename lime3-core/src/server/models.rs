@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use bytesize::ByteSize;
 use chrono::{DateTime, NaiveDate, Utc};
 use file_format::FileFormat;
@@ -10,20 +9,18 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
-use crate::server::commands::{get_plan_by_id, get_used_space_by_user};
+use crate::server::commands::{get_plan_by_id, get_used_space_by_user, verify_password};
 use crate::server::config::USERS_CONFIG;
 
 use super::config::STORAGE_CONFIG;
 use super::constants::ALLOWED_FILE_FORMATS;
 
-fn verify_password(encrypted_password: &str, password: &str) -> bool {
-    let argon2 = Argon2::default();
-
-    let Ok(password_hash) = PasswordHash::new(encrypted_password) else {
-        return false;
-    };
-
-    argon2.verify_password(password.as_bytes(), &password_hash).is_ok()
+pub struct AccessToken<'a> {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub token: Cow<'a, str>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 pub struct File<'a> {
@@ -267,13 +264,4 @@ impl User<'_> {
     pub fn verify_password(&self, password: &str) -> bool {
         verify_password(&self.encrypted_password, password)
     }
-}
-
-pub struct UserSession {
-    pub id: Uuid,
-    pub user_id: Uuid,
-    #[allow(dead_code)]
-    pub created_at: DateTime<Utc>,
-    #[allow(dead_code)]
-    pub updated_at: Option<DateTime<Utc>>,
 }

@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::server_functions::{attempt_to_create_plan_checkout, get_all_available_plans};
+use crate::server_fns::{attempt_to_create_plan_checkout, get_all_available_plans};
 
 #[component]
 pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Callback) -> Element {
@@ -33,10 +33,12 @@ pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Ca
 
 #[component]
 pub fn SubscriptionModal(is_open: Signal<bool>, on_success: Callback<()>) -> Element {
-    let navigator = use_navigator();
     let plans = use_resource(get_all_available_plans);
     let mut selected_plan_id = use_signal(|| None);
     let mut is_yearly = use_signal(|| false);
+
+    #[cfg(feature = "web")]
+    let navigator = use_navigator();
 
     rsx! {
         Modal { class: "max-w-300", is_open,
@@ -111,11 +113,18 @@ pub fn SubscriptionModal(is_open: Signal<bool>, on_success: Callback<()>) -> Ele
                                                 let result = attempt_to_create_plan_checkout(plan_id, is_yearly()).await;
 
                                                 if let Ok(checkout_url) = result {
-                                                    navigator.push(checkout_url.to_string());
+                                                    #[cfg(feature = "web")] navigator.push(checkout_url.to_string());
+                                                    #[cfg(feature = "desktop")]
+                                                    let _ = dioxus::desktop::use_window()
+                                                        .webview
+                                                        .load_url(checkout_url.as_ref());
+                                                    #[cfg(feature = "mobile")]
+                                                    let _ = dioxus::mobile::use_window()
+                                                        .webview
+                                                        .load_url(checkout_url.as_ref());
                                                 } else {
                                                     *selected_plan_id.write() = None;
                                                 }
-
                                             }
                                         }
                                     },

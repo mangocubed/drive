@@ -17,8 +17,6 @@ pub enum Routes {
         FolderPage { id: Uuid },
         #[route("/storage")]
         StoragePage {},
-        #[route("/confirm-checkout?:checkout_id")]
-        ConfirmCheckoutPage { checkout_id: Uuid },
     #[end_layout]
 
     #[layout(GuestLayout)]
@@ -26,6 +24,10 @@ pub enum Routes {
         LoginPage {},
         #[route("/register")]
         RegisterPage {},
+    #[end_layout]
+
+    #[route("/confirm-checkout?:checkout_id")]
+    ConfirmCheckoutPage { checkout_id: Uuid },
 }
 
 impl Routes {

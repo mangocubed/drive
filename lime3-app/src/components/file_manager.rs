@@ -10,7 +10,7 @@ use crate::icons::{
     ArrowUpTrayOutline, CheckCircleOutline, ExclamationTriangleOutline, FolderOutline, FolderPlusOutline,
 };
 use crate::routes::Routes;
-use crate::server_functions::{attempt_to_create_folder, attempt_to_upload_file, get_all_folder_items};
+use crate::server_fns::{attempt_to_create_folder, attempt_to_upload_file, get_all_folder_items};
 use crate::use_current_user;
 
 use super::Modal;

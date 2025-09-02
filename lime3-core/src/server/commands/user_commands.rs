@@ -1,6 +1,3 @@
-use argon2::password_hash::SaltString;
-use argon2::password_hash::rand_core::OsRng;
-use argon2::{Argon2, PasswordHasher};
 use chrono::NaiveDate;
 use validator::{Validate, ValidationErrors};
 
@@ -9,6 +6,27 @@ use crate::server::config::USERS_CONFIG;
 use crate::server::constants::ERROR_ALREADY_EXISTS;
 use crate::server::db_pool;
 use crate::server::models::User;
+
+use super::{delete_all_access_tokens_by_user, encrypt_password};
+
+pub async fn disable_user(user: &User<'_>) -> sqlx::Result<()> {
+    let db_pool = db_pool().await;
+
+    if user.is_disabled() {
+        return Ok(());
+    }
+
+    sqlx::query!(
+        "UPDATE users SET disabled_at = current_timestamp WHERE disabled_at IS NULL AND id = $1",
+        user.id
+    )
+    .execute(db_pool)
+    .await?;
+
+    delete_all_access_tokens_by_user(user).await?;
+
+    Ok(())
+}
 
 async fn email_exists(value: &str) -> bool {
     let db_pool = db_pool().await;
@@ -22,10 +40,16 @@ async fn email_exists(value: &str) -> bool {
     .is_ok()
 }
 
-fn encrypt_password(value: &str) -> String {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    argon2.hash_password(value.as_bytes(), &salt).unwrap().to_string()
+pub async fn get_user_by_access_token<'a>(token: &str) -> sqlx::Result<User<'a>> {
+    let db_pool = db_pool().await;
+
+    sqlx::query_as!(
+        User,
+        "SELECT * FROM users WHERE id = (SELECT user_id FROM access_tokens WHERE token = $1 LIMIT 1) LIMIT 1",
+        token
+    )
+    .fetch_one(db_pool)
+    .await
 }
 
 async fn get_users_count() -> sqlx::Result<i64> {

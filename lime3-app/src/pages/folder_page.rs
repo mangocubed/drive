@@ -3,12 +3,12 @@ use uuid::Uuid;
 
 use crate::components::{FileManager, PageTitle};
 use crate::routes::Routes;
-use crate::server_functions::get_folder;
+use crate::server_fns::get_folder;
 
 #[component]
 pub fn FolderPage(id: ReadOnlySignal<Uuid>) -> Element {
     let parent_folder_id = use_memo(move || Some(id()));
-    let folder = use_server_future(move || async move { get_folder(id()).await.ok().flatten() })?;
+    let folder = use_resource(move || async move { get_folder(id()).await.ok().flatten() });
     let page_title = use_memo(move || {
         if let Some(Some(folder)) = &*folder.read() {
             let mut title = "Home > ".to_owned();

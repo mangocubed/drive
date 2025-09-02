@@ -19,7 +19,6 @@ where
 
 pub(crate) static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_from_env("DATABASE_"));
 pub(crate) static POLAR_CONFIG: LazyLock<PolarConfig> = LazyLock::new(|| extract_from_env("POLAR_"));
-pub static SESSION_CONFIG: LazyLock<SessionConfig> = LazyLock::new(|| extract_from_env("SESSION_"));
 pub(crate) static STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| extract_from_env("STORAGE_"));
 pub(crate) static USERS_CONFIG: LazyLock<UsersConfig> = LazyLock::new(|| extract_from_env("USERS_"));
 
@@ -58,29 +57,6 @@ impl Default for PolarConfig {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct SessionConfig {
-    pub domain: String,
-    pub key: String,
-    pub name: String,
-    pub redis_url: String,
-    pub secure: bool,
-}
-
-impl Default for SessionConfig {
-    fn default() -> Self {
-        let db_number = if cfg!(test) { "10" } else { "0" };
-
-        Self {
-            domain: "".to_owned(),
-            key: "abcdefghijklmnopqrestuvvwxyz0123456789ABCDEFGHIJKLMNOPQRESTUVVWX".to_owned(),
-            name: "_lime3_session".to_owned(),
-            redis_url: format!("redis://127.0.0.1:6379/{db_number}"),
-            secure: false,
-        }
-    }
-}
-
-#[derive(Deserialize, Serialize)]
 pub(crate) struct StorageConfig {
     pub image_filter_type: FilterType,
     pub max_size_gib_per_file: u8,
@@ -108,6 +84,7 @@ impl StorageConfig {
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct UsersConfig {
+    pub access_token_length: u8,
     pub free_quota_gib: u8,
     pub limit: u8,
 }
@@ -115,6 +92,7 @@ pub(crate) struct UsersConfig {
 impl Default for UsersConfig {
     fn default() -> Self {
         Self {
+            access_token_length: 32,
             free_quota_gib: 5,
             limit: 10,
         }

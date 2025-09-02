@@ -1,10 +1,12 @@
 use dioxus::prelude::*;
+use serde_json::Value;
 
 use crate::components::PageTitle;
 use crate::forms::{Form, FormSuccessModal, PasswordField, TextField, use_form_provider};
 use crate::routes::Routes;
-use crate::server_functions::attempt_to_login;
+use crate::server_fns::attempt_to_login;
 use crate::use_current_user;
+use crate::utils::{DataStorageTrait, data_storage};
 
 #[component]
 pub fn LoginPage() -> Element {
@@ -26,6 +28,11 @@ pub fn LoginPage() -> Element {
         }
 
         Form {
+            on_success: move |value| {
+                if let Value::String(token) = value {
+                    data_storage().set_access_token(&token);
+                }
+            },
             TextField {
                 id: "username_or_email",
                 label: "Username or email",

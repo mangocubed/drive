@@ -6,39 +6,41 @@ edition.workspace = true
 [dependencies]
 anyhow = { workspace = true, optional = true }
 axum = { version = "0.8.4", optional = true }
+axum-extra = { version = "0.10.1", features = [
+    "typed-header",
+], optional = true }
 bytesize = { workspace = true, optional = true }
-cookie = { version = "0.18.1", features = ["private"], optional = true }
 dioxus = { version = "0.7.0-rc.0", features = ["router", "fullstack"] }
-fred = { version = "10.1.0", optional = true }
-futures = { version = "0.3.31", optional = true }
+directories = { version = "6.0.0", optional = true }
+futures = "0.3.31"
+headers = { version = "0.4.1", optional = true }
+jni = { version = "0.21.1", default-features = false, optional = true }
+reqwest = { version = "0.12.23", default-features = false, optional = true }
 rust_iso3166 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-uuid = { workspace = true }
-time = { version = "0.3.42", optional = true }
 tokio = { workspace = true, optional = true }
-tower-sessions = { version = "0.14.0", features = ["private"], optional = true }
-tower-sessions-redis-store = { version = "0.16.0", optional = true }
 url = { workspace = true, features = ["serde"] }
+uuid = { workspace = true }
 validator = { workspace = true }
+web-sys = { version = "0.3.77", features = [
+    "Window",
+    "Storage",
+], optional = true }
 lime3-core = { workspace = true }
 
 [features]
 default = ["web"]
-web = ["dioxus/web"]
-desktop = ["dioxus/desktop"]
-mobile = ["dioxus/mobile"]
+web = ["dep:web-sys", "dioxus/web"]
+desktop = ["dep:directories", "dep:reqwest", "dioxus/desktop"]
+mobile = ["dep:jni", "dep:reqwest", "dioxus/mobile"]
 server = [
     "dep:anyhow",
     "dep:axum",
+    "dep:axum-extra",
     "dep:bytesize",
-    "dep:cookie",
-    "dep:fred",
-    "dep:futures",
-    "dep:time",
+    "dep:headers",
     "dep:tokio",
-    "dep:tower-sessions",
-    "dep:tower-sessions-redis-store",
     "dioxus/server",
     "lime3-core/server",
 ]
