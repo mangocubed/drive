@@ -24,7 +24,11 @@ jobs:
             - uses: actions/checkout@v5
             - uses: ./.github/actions/setup-dioxus
             - name: Check with cargo-clippy
-              run: cargo clippy --all-features -- -D warnings
+              run: |
+                  cargo clippy --package lime3-core -- -D warnings
+                  cargo clippy --package lime3-app -- -D warnings
+                  cargo clippy --package lime3-app --no-default-features --features desktop -- -D warnings
+                  cargo clippy --package lime3-cli -- -D warnings
             - name: Check with cargo-fmt
               run: cargo fmt --all --check
             - name: Check with dioxus-cli

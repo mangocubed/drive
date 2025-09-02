@@ -4,11 +4,11 @@ use uuid::Uuid;
 use crate::components::PageTitle;
 use crate::icons::ArrowDownTrayOutline;
 use crate::routes::Routes;
-use crate::server_functions::get_file;
+use crate::server_fns::get_file;
 
 #[component]
 pub fn FilePage(id: ReadOnlySignal<Uuid>) -> Element {
-    let file = use_server_future(move || async move { get_file(id()).await.ok().flatten() })?;
+    let file = use_resource(move || async move { get_file(id()).await.ok().flatten() });
     let page_title = use_memo(move || {
         if let Some(Some(file)) = &*file.read() {
             let mut title = "Home > ".to_owned();

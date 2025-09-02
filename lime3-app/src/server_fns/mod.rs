@@ -4,18 +4,36 @@ use url::Url;
 use uuid::Uuid;
 
 #[cfg(feature = "server")]
+use axum_extra::TypedHeader;
+#[cfg(not(feature = "server"))]
+use dioxus::fullstack::client::Client;
+#[cfg(feature = "server")]
+use dioxus::fullstack::mock_client::MockServerFnClient;
+#[cfg(not(feature = "server"))]
+use futures::{Sink, Stream};
+#[cfg(feature = "server")]
+use headers::Authorization;
+#[cfg(feature = "server")]
+use headers::authorization::Bearer;
+#[cfg(feature = "server")]
 use serde_json::Value;
-#[cfg(feature = "server")]
-use tower_sessions::Session;
-#[cfg(feature = "server")]
-use validator::ValidationErrors;
+#[cfg(feature = "web")]
+use server_fn::client::browser::BrowserClient;
+#[cfg(any(feature = "desktop", feature = "mobile"))]
+use server_fn::client::reqwest::ReqwestClient;
+#[cfg(not(feature = "server"))]
+use server_fn::error::FromServerFnError;
+#[cfg(feature = "web")]
+use server_fn::request::browser::BrowserRequest;
+#[cfg(feature = "web")]
+use server_fn::response::browser::BrowserResponse;
 
-use lime3_core::inputs::{FileInput, FolderInput, LoginInput, RegisterInput};
+use lime3_core::inputs::{FileInput, FolderInput};
 
 #[cfg(feature = "server")]
 use lime3_core::server::commands::*;
 #[cfg(feature = "server")]
-use lime3_core::server::models::{User, UserSession};
+use lime3_core::server::models::{AccessToken, User};
 
 use crate::forms::FormStatus;
 use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, PlanPresenter, UserPresenter};
@@ -23,8 +41,100 @@ use crate::routes::Routes;
 
 #[cfg(feature = "server")]
 use crate::presenters::AsyncInto;
+
+mod login_server_fns;
+
+pub use login_server_fns::*;
+
 #[cfg(feature = "server")]
-use crate::server::SessionTrait;
+pub type ServFnClient = MockServerFnClient;
+
+#[cfg(not(feature = "server"))]
+pub struct ServFnClient;
+
+#[cfg(feature = "web")]
+impl<E, IS, OS> Client<E, IS, OS> for ServFnClient
+where
+    E: FromServerFnError,
+    IS: FromServerFnError,
+    OS: FromServerFnError,
+{
+    type Request = BrowserRequest;
+    type Response = BrowserResponse;
+
+    fn send(req: Self::Request) -> impl Future<Output = Result<Self::Response, E>> + Send {
+        use crate::utils::{DataStorageTrait, data_storage};
+
+        let headers = req.headers();
+        let access_token = data_storage().get_access_token();
+
+        if let Some(token) = access_token {
+            headers.append("Authorization", &format!("Bearer {token}",));
+        }
+
+        <BrowserClient as Client<E, IS, OS>>::send(req)
+    }
+
+    fn open_websocket(
+        path: &str,
+    ) -> impl Future<
+        Output = Result<
+            (
+                impl Stream<Item = Result<server_fn::Bytes, server_fn::Bytes>> + Send + 'static,
+                impl Sink<server_fn::Bytes> + Send + 'static,
+            ),
+            E,
+        >,
+    > + Send {
+        <BrowserClient as Client<E, IS, OS>>::open_websocket(path)
+    }
+
+    fn spawn(future: impl Future<Output = ()> + Send + 'static) {
+        <BrowserClient as Client<E, IS, OS>>::spawn(future)
+    }
+}
+
+#[cfg(any(feature = "desktop", feature = "mobile"))]
+impl<E, IS, OS> Client<E, IS, OS> for ServFnClient
+where
+    E: FromServerFnError,
+    IS: FromServerFnError,
+    OS: FromServerFnError,
+{
+    type Request = reqwest::Request;
+    type Response = reqwest::Response;
+
+    fn send(mut req: Self::Request) -> impl Future<Output = Result<Self::Response, E>> + Send {
+        use crate::utils::{DataStorageTrait, data_storage};
+
+        let headers = req.headers_mut();
+        let access_token = data_storage().get_access_token();
+
+        if let Some(token) = access_token {
+            headers.append("Authorization", format!("Bearer {token}").parse().unwrap());
+        }
+
+        <ReqwestClient as Client<E, IS, OS>>::send(req)
+    }
+
+    fn open_websocket(
+        path: &str,
+    ) -> impl Future<
+        Output = Result<
+            (
+                impl Stream<Item = Result<server_fn::Bytes, server_fn::Bytes>> + Send + 'static,
+                impl Sink<server_fn::Bytes> + Send + 'static,
+            ),
+            E,
+        >,
+    > + Send {
+        <ReqwestClient as Client<E, IS, OS>>::open_websocket(path)
+    }
+
+    fn spawn(future: impl Future<Output = ()> + Send + 'static) {
+        <ReqwestClient as Client<E, IS, OS>>::spawn(future)
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ServFnError {
@@ -58,13 +168,9 @@ impl ServFnError {
     }
 }
 
-#[server]
+#[server(client = ServFnClient)]
 pub async fn attempt_to_confirm_plan_checkout(checkout_id: Uuid) -> ServFnResult<String> {
-    require_login().await?;
-
-    let user = extract_user().await?.unwrap();
-
-    let result = confirm_user_plan_checkout(&user, checkout_id).await;
+    let result = confirm_plan_checkout(checkout_id).await;
 
     match result {
         Ok(_) => Ok("Subscription upgraded successfully".to_owned()),
@@ -72,7 +178,7 @@ pub async fn attempt_to_confirm_plan_checkout(checkout_id: Uuid) -> ServFnResult
     }
 }
 
-#[server]
+#[server(client = ServFnClient)]
 pub async fn attempt_to_create_folder(input: FolderInput) -> ServFnResult<FormStatus> {
     require_login().await?;
 
@@ -89,81 +195,7 @@ pub async fn attempt_to_create_folder(input: FolderInput) -> ServFnResult<FormSt
     }
 }
 
-#[server]
-pub async fn attempt_to_login(input: LoginInput) -> ServFnResult<FormStatus> {
-    require_no_login().await?;
-
-    let user = {
-        let result = authenticate_user(&input).await;
-
-        match result {
-            Ok(user) => user,
-            Err(errors) => {
-                return Ok(FormStatus::Failed("Failed to authenticate user".to_owned(), errors));
-            }
-        }
-    };
-
-    let result = insert_user_session(&user).await;
-
-    match result {
-        Ok(user_session) => {
-            let session = extract_session().await?;
-
-            let _ = session.set_user_session(user_session).await;
-
-            Ok(FormStatus::Success(
-                "User authenticated successfully".to_owned(),
-                Value::Null,
-            ))
-        }
-        Err(_) => Ok(FormStatus::Failed(
-            "Failed to authenticate user".to_owned(),
-            ValidationErrors::new(),
-        )),
-    }
-}
-
-#[server]
-pub async fn attempt_to_logout() -> ServFnResult<()> {
-    require_login().await?;
-
-    let Some(user_session) = extract_user_session().await? else {
-        return Ok(());
-    };
-
-    let _ = delete_user_session(&user_session).await;
-
-    let session = extract_session().await?;
-
-    let _ = session.remove_user_session().await;
-
-    Ok(())
-}
-
-#[server]
-pub async fn attempt_to_register(input: RegisterInput) -> ServFnResult<FormStatus> {
-    require_no_login().await?;
-
-    let result = insert_user(&input).await;
-
-    match result {
-        Ok(user) => {
-            let result = insert_user_session(&user).await;
-
-            if let Ok(user_session) = result {
-                let session = extract_session().await?;
-
-                let _ = session.set_user_session(user_session).await;
-            }
-
-            Ok(FormStatus::Success("User created successfully".to_owned(), Value::Null))
-        }
-        Err(errors) => Ok(FormStatus::Failed("Failed to create user".to_owned(), errors)),
-    }
-}
-
-#[server]
+#[server(client = ServFnClient)]
 pub async fn attempt_to_create_plan_checkout(plan_id: Uuid, is_yearly: bool) -> ServFnResult<Url> {
     require_login().await?;
 
@@ -180,7 +212,7 @@ pub async fn attempt_to_create_plan_checkout(plan_id: Uuid, is_yearly: bool) -> 
     }
 }
 
-#[server]
+#[server(client = ServFnClient)]
 pub async fn attempt_to_upload_file(input: FileInput) -> ServFnResult<bool> {
     require_login().await?;
 
@@ -192,28 +224,36 @@ pub async fn attempt_to_upload_file(input: FileInput) -> ServFnResult<bool> {
 }
 
 #[cfg(feature = "server")]
-async fn extract_session() -> ServFnResult<Session> {
-    extract()
+async fn extract_bearer() -> ServFnResult<Option<Bearer>> {
+    if let Some(TypedHeader(Authorization(bearer))) = extract::<Option<TypedHeader<Authorization<Bearer>>>, _>()
         .await
-        .map_err(|_| ServFnError::Other("Session layer not found".to_owned()).into())
+        .map_err(|error| ServFnError::Other(error.to_string()))?
+    {
+        Ok(Some(bearer))
+    } else {
+        Ok(None)
+    }
+}
+
+#[cfg(feature = "server")]
+async fn extract_access_token<'a>() -> ServFnResult<Option<AccessToken<'a>>> {
+    if let Some(bearer) = extract_bearer().await? {
+        Ok(get_access_token(bearer.token()).await.ok())
+    } else {
+        Ok(None)
+    }
 }
 
 #[cfg(feature = "server")]
 async fn extract_user<'a>() -> ServFnResult<Option<User<'a>>> {
-    let session = extract_session().await?;
-    let user = session.user().await.ok();
-
-    Ok(user)
+    if let Some(bearer) = extract_bearer().await? {
+        Ok(get_user_by_access_token(bearer.token()).await.ok())
+    } else {
+        Ok(None)
+    }
 }
 
-#[cfg(feature = "server")]
-async fn extract_user_session() -> ServFnResult<Option<UserSession>> {
-    let session = extract_session().await?;
-
-    Ok(session.user_session().await.ok())
-}
-
-#[server]
+#[server(client = ServFnClient)]
 pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResult<Vec<FolderItemPresenter>> {
     require_login().await?;
 
@@ -234,7 +274,7 @@ pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResul
     Ok(futures::future::join_all(folder_items.iter().map(|folder_item| folder_item.async_into())).await)
 }
 
-#[server]
+#[server(client = ServFnClient)]
 pub async fn get_current_user() -> ServFnResult<Option<UserPresenter>> {
     let Some(user) = extract_user().await? else {
         return Ok(None);
@@ -243,7 +283,7 @@ pub async fn get_current_user() -> ServFnResult<Option<UserPresenter>> {
     Ok(Some(user.async_into().await))
 }
 
-#[server]
+#[server(client = ServFnClient)]
 pub async fn get_file(id: Uuid) -> ServFnResult<Option<FilePresenter>> {
     require_login().await?;
 
@@ -258,7 +298,7 @@ pub async fn get_file(id: Uuid) -> ServFnResult<Option<FilePresenter>> {
     })
 }
 
-#[server]
+#[server(client = ServFnClient)]
 pub async fn get_folder(id: Uuid) -> ServFnResult<Option<FolderPresenter>> {
     require_login().await?;
 
@@ -273,7 +313,7 @@ pub async fn get_folder(id: Uuid) -> ServFnResult<Option<FolderPresenter>> {
     })
 }
 
-#[server]
+#[server(client = ServFnClient)]
 pub async fn get_all_available_plans() -> ServFnResult<Vec<PlanPresenter>> {
     require_login().await?;
 
@@ -285,9 +325,9 @@ pub async fn get_all_available_plans() -> ServFnResult<Vec<PlanPresenter>> {
         .collect())
 }
 
-#[server]
+#[server(client = ServFnClient)]
 pub async fn is_logged_in() -> ServFnResult<bool> {
-    Ok(extract_user_session().await?.is_some())
+    Ok(extract_access_token().await?.is_some())
 }
 
 #[cfg(feature = "server")]

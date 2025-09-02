@@ -10,6 +10,8 @@ use crate::server::config::POLAR_CONFIG;
 use crate::server::models::{Plan, User};
 use crate::server::{POLAR_CLIENT, db_pool};
 
+use super::get_user_by_id;
+
 pub async fn cancel_subscription(user: &User<'_>) -> anyhow::Result<()> {
     let Some(subscription_id) = user.polar_subscription_id else {
         return Err(anyhow::anyhow!("User has no active subscription"));
@@ -38,12 +40,18 @@ pub async fn cancel_subscription(user: &User<'_>) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn confirm_user_plan_checkout(user: &User<'_>, checkout_id: Uuid) -> anyhow::Result<()> {
+pub async fn confirm_plan_checkout(checkout_id: Uuid) -> anyhow::Result<()> {
     let checkout = POLAR_CLIENT.get_checkout_session(checkout_id).await?;
 
-    if !checkout.status.is_succeeded() || checkout.external_customer_id != Some(user.id.to_string()) {
+    if !checkout.status.is_succeeded() {
         return Err(anyhow::anyhow!("Invalid checkout session"));
     }
+
+    let Some(user_id) = checkout.external_customer_id.and_then(|id| id.parse().ok()) else {
+        return Err(anyhow::anyhow!("Invalid user ID"));
+    };
+
+    let user = get_user_by_id(user_id).await?;
 
     let db_pool = db_pool().await;
 

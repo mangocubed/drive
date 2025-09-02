@@ -2,7 +2,7 @@ use dioxus::cli_config::app_title;
 use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
 
-use crate::server_functions::is_logged_in;
+use crate::server_fns::is_logged_in;
 
 mod file_manager;
 mod modals;
@@ -12,7 +12,7 @@ pub use modals::{ConfirmationModal, Modal, SubscriptionModal};
 
 #[component]
 pub fn LoggedIn(children: Element) -> Element {
-    let is_logged_in = use_server_future(is_logged_in)?;
+    let is_logged_in = use_resource(is_logged_in);
 
     rsx! {
         if let Some(Ok(true)) = is_logged_in() {

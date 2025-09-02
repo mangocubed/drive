@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::components::PageTitle;
 use crate::routes::Routes;
-use crate::server_functions::attempt_to_confirm_plan_checkout;
+use crate::server_fns::attempt_to_confirm_plan_checkout;
 use crate::use_current_user;
 
 #[component]
@@ -20,16 +20,16 @@ pub fn ConfirmCheckoutPage(checkout_id: Uuid) -> Element {
     rsx! {
         PageTitle { "Confirm checkout" }
 
-        h1 { class: "h1", "Confirm checkout" }
+        main { class: "main",
+            div { class: "text-center",
+                if let Some(Ok(message)) = confirm_checkout() {
+                    div { class: "text-lg font-bold", {message} }
 
-        div { class: "text-center",
-            if let Some(Ok(message)) = confirm_checkout() {
-                div { class: "text-lg font-bold", {message} }
-
-                Link { class: "btn btn-link", to: Routes::home(), "Go to home" }
-            } else {
-                div { class: "text-lg font-bold",
-                    "Failed to confirm checkout. Please contact the support if you need help."
+                    Link { class: "btn btn-link", to: Routes::home(), "Go to home" }
+                } else {
+                    div { class: "text-lg font-bold",
+                        "Failed to confirm checkout. Please contact the support if you need help."
+                    }
                 }
             }
         }

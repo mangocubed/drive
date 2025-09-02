@@ -9,7 +9,7 @@ use validator::ValidationErrors;
 
 use crate::components::Modal;
 use crate::icons::{EyeMini, EyeSlashMini};
-use crate::server_functions::ServFnResult;
+use crate::server_fns::ServFnResult;
 
 #[derive(Clone, PartialEq)]
 pub struct FormProvider {

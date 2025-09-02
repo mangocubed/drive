@@ -1,10 +1,11 @@
 use dioxus::prelude::*;
 
-use crate::icons::{ChevronDownMini, CloudOutline};
+use crate::components::ConfirmationModal;
+use crate::icons::{ChevronDownMini, CloudOutline, HomeOutline};
 use crate::routes::Routes;
-use crate::server_functions::attempt_to_logout;
+use crate::server_fns::attempt_to_logout;
 use crate::use_current_user;
-use crate::{components::ConfirmationModal, icons::HomeOutline};
+use crate::utils::{DataStorageTrait, data_storage};
 
 use super::{ICON_SVG, LoadingOverlay};
 
@@ -63,6 +64,7 @@ pub fn UserLayout() -> Element {
                         on_accept: move |()| {
                             async move {
                                 if attempt_to_logout().await.is_ok() {
+                                    data_storage().delete_access_token();
                                     navigator.push(Routes::login());
                                     current_user.restart();
                                 }

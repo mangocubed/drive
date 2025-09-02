@@ -1,9 +1,14 @@
 use std::fs::File as FsFile;
 use std::io::Write;
 
+use argon2::password_hash::SaltString;
+use argon2::password_hash::rand_core::OsRng;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use bytesize::ByteSize;
 use file_format::FileFormat;
 use md5::{Digest, Md5};
+use rand::distr::Alphanumeric;
+use rand::{Rng, rng};
 use strum::IntoEnumIterator;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
@@ -14,11 +19,13 @@ use crate::inputs::{FileInput, FolderInput, LoginInput};
 use super::config::STORAGE_CONFIG;
 use super::constants::*;
 use super::db_pool;
-use super::models::{File, Folder, FolderItem, User, UserSession};
+use super::models::{File, Folder, FolderItem, User};
 
+mod access_token_commands;
 mod plan_commands;
 mod user_commands;
 
+pub use access_token_commands::*;
 pub use plan_commands::*;
 pub use user_commands::*;
 
@@ -44,41 +51,10 @@ pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, Valid
     }
 }
 
-pub async fn delete_all_user_sessions_by_user(user: &User<'_>) -> sqlx::Result<()> {
-    let db_pool = db_pool().await;
-
-    sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", user.id)
-        .execute(db_pool)
-        .await
-        .map(|_| ())
-}
-
-pub async fn delete_user_session(user_session: &UserSession) -> sqlx::Result<()> {
-    let db_pool = db_pool().await;
-
-    sqlx::query!("DELETE FROM user_sessions WHERE id = $1", user_session.id)
-        .execute(db_pool)
-        .await
-        .map(|_| ())
-}
-
-pub async fn disable_user(user: &User<'_>) -> sqlx::Result<()> {
-    let db_pool = db_pool().await;
-
-    if user.is_disabled() {
-        return Ok(());
-    }
-
-    sqlx::query!(
-        "UPDATE users SET disabled_at = current_timestamp WHERE disabled_at IS NULL AND id = $1",
-        user.id
-    )
-    .execute(db_pool)
-    .await?;
-
-    delete_all_user_sessions_by_user(user).await?;
-
-    Ok(())
+fn encrypt_password(value: &str) -> String {
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    argon2.hash_password(value.as_bytes(), &salt).unwrap().to_string()
 }
 
 pub async fn enable_user(user: &User<'_>) -> sqlx::Result<()> {
@@ -117,6 +93,14 @@ async fn file_name_exists(user: &User<'_>, parent_folder_id: Option<Uuid>, name:
     .fetch_one(db_pool)
     .await
     .is_ok()
+}
+
+fn generate_random_string(length: u8) -> String {
+    rng()
+        .sample_iter(&Alphanumeric)
+        .take(length as usize)
+        .map(char::from)
+        .collect()
 }
 
 pub async fn get_file_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Result<File<'a>> {
@@ -235,18 +219,6 @@ pub async fn get_user_by_id<'a>(id: Uuid) -> sqlx::Result<User<'a>> {
         .await
 }
 
-pub async fn get_user_by_user_session_id<'a>(user_session_id: Uuid) -> sqlx::Result<User<'a>> {
-    let db_pool = db_pool().await;
-
-    sqlx::query_as!(
-        User,
-        "SELECT * FROM users WHERE id = (SELECT user_id FROM user_sessions WHERE id = $1 LIMIT 1) LIMIT 1",
-        user_session_id
-    )
-    .fetch_one(db_pool)
-    .await
-}
-
 pub async fn get_user_by_username(username: &str) -> sqlx::Result<User<'_>> {
     if username.is_empty() {
         return Err(sqlx::Error::RowNotFound);
@@ -261,14 +233,6 @@ pub async fn get_user_by_username(username: &str) -> sqlx::Result<User<'_>> {
     )
     .fetch_one(db_pool)
     .await
-}
-
-pub async fn get_user_session_by_id(id: uuid::Uuid) -> sqlx::Result<UserSession> {
-    let db_pool = db_pool().await;
-
-    sqlx::query_as!(UserSession, "SELECT * FROM user_sessions WHERE id = $1 LIMIT 1", id)
-        .fetch_one(db_pool)
-        .await
 }
 
 pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<'a>, ValidationErrors> {
@@ -392,16 +356,14 @@ pub async fn insert_folder<'a>(user: &User<'_>, input: &FolderInput) -> Result<F
     .map_err(|_| ValidationErrors::new())
 }
 
-pub async fn insert_user_session(user: &User<'_>) -> sqlx::Result<UserSession> {
-    let db_pool = db_pool().await;
+pub(crate) fn verify_password(encrypted_password: &str, password: &str) -> bool {
+    let argon2 = Argon2::default();
 
-    sqlx::query_as!(
-        UserSession,
-        "INSERT INTO user_sessions (user_id) VALUES ($1) RETURNING *",
-        user.id, // $1
-    )
-    .fetch_one(db_pool)
-    .await
+    let Ok(password_hash) = PasswordHash::new(encrypted_password) else {
+        return false;
+    };
+
+    argon2.verify_password(password.as_bytes(), &password_hash).is_ok()
 }
 
 #[cfg(test)]
