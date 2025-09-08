@@ -1,5 +1,29 @@
+use std::collections::HashMap;
+
+use dioxus::signals::{GlobalSignal, ReadableExt};
+
 #[cfg(not(feature = "server"))]
 const KEY_ACCESS_TOKEN: &str = "_access_token";
+
+pub static LOADER_UNITS: GlobalSignal<HashMap<String, bool>> = GlobalSignal::new(HashMap::new);
+
+pub async fn run_with_loader<T, F>(id: String, mut future: impl FnMut() -> F + 'static) -> T
+where
+    T: 'static,
+    F: IntoFuture<Output = T> + 'static,
+{
+    LOADER_UNITS.write().insert(id.clone(), true);
+
+    let resp = future().await;
+
+    LOADER_UNITS.write().insert(id.clone(), false);
+
+    resp
+}
+
+pub fn loader_is_active() -> bool {
+    LOADER_UNITS.read().values().any(|&loading| loading)
+}
 
 pub trait DataStorageTrait {
     fn new() -> Self;

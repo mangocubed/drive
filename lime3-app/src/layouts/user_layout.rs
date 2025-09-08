@@ -1,13 +1,12 @@
 use dioxus::prelude::*;
 
+use crate::ICON_SVG;
 use crate::components::ConfirmationModal;
-use crate::icons::{ChevronDownMini, CloudOutline, HomeOutline};
+use crate::hooks::use_current_user;
+use crate::icons::{ChevronDownMini, CloudOutline, HomeOutline, TrashOutline};
 use crate::routes::Routes;
 use crate::server_fns::attempt_to_logout;
-use crate::use_current_user;
 use crate::utils::{DataStorageTrait, data_storage};
-
-use super::{ICON_SVG, LoadingOverlay};
 
 #[component]
 pub fn UserLayout() -> Element {
@@ -33,7 +32,7 @@ pub fn UserLayout() -> Element {
 
                 div { class: "navbar-end",
                     div { class: "dropdown dropdown-end",
-                        button { class: "btn btn-ghost btn-lg px-2", tabindex: 1,
+                        button { class: "btn btn-ghost btn-lg px-2", tabindex: 0,
                             div { class: "text-left text-xs",
                                 div { class: "mb-1 font-bold", {user.display_name.clone()} }
                                 div { class: "opacity-70",
@@ -46,8 +45,8 @@ pub fn UserLayout() -> Element {
                         }
 
                         ul {
-                            class: "menu menu-sm dropdown-content bg-base-200 rounded-box shadow mt-3 p-2 w-48 z-1",
-                            tabindex: 1,
+                            class: "menu menu-sm dropdown-content bg-base-200 rounded-box shadow mt-3 p-2 w-max z-1",
+                            tabindex: 0,
                             li {
                                 a {
                                     onclick: move |_| {
@@ -86,6 +85,17 @@ pub fn UserLayout() -> Element {
                                 span { class: "max-md:hidden", "Home" }
                             }
                         }
+
+                        div { class: "divider m-1" }
+
+                        li {
+                            class: "max-md:tooltip max-md:tooltip-right",
+                            "data-tip": "Trash",
+                            Link { to: Routes::trash(),
+                                TrashOutline {}
+                                span { class: "max-md:hidden", "Trash" }
+                            }
+                        }
                     }
 
                     ul { class: "menu md:w-56 mt-auto",
@@ -120,7 +130,5 @@ pub fn UserLayout() -> Element {
                 main { class: "main grow", Outlet::<Routes> {} }
             }
         }
-
-        LoadingOverlay {}
     }
 }

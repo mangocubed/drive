@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 
 use crate::server_fns::{attempt_to_create_plan_checkout, get_all_available_plans};
+use crate::use_resource_with_loader;
+use crate::utils::run_with_loader;
 
 #[component]
 pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Callback) -> Element {
@@ -33,7 +35,7 @@ pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Ca
 
 #[component]
 pub fn SubscriptionModal(is_open: Signal<bool>, on_success: Callback<()>) -> Element {
-    let plans = use_resource(get_all_available_plans);
+    let plans = use_resource_with_loader("available-plans".to_owned(), get_all_available_plans);
     let mut selected_plan_id = use_signal(|| None);
     let mut is_yearly = use_signal(|| false);
 
@@ -110,8 +112,12 @@ pub fn SubscriptionModal(is_open: Signal<bool>, on_success: Callback<()>) -> Ele
 
                                                 *selected_plan_id.write() = Some(plan_id);
 
-                                                let result = attempt_to_create_plan_checkout(plan_id, is_yearly()).await;
+                                                let result = run_with_loader(
 
+                                                        "create-plan-checkout".to_owned(),
+                                                        move || attempt_to_create_plan_checkout(plan_id, is_yearly()),
+                                                    )
+                                                    .await;
                                                 if let Ok(checkout_url) = result {
                                                     #[cfg(feature = "web")] navigator.push(checkout_url.to_string());
                                                     #[cfg(feature = "desktop")]

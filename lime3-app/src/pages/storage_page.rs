@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 use crate::components::{PageTitle, SubscriptionModal};
-use crate::use_current_user;
+use crate::hooks::use_current_user;
 
 #[component]
 pub fn StoragePage() -> Element {

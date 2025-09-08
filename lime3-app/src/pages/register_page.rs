@@ -2,15 +2,15 @@ use dioxus::prelude::*;
 use serde_json::Value;
 
 use crate::components::PageTitle;
-use crate::forms::{Form, FormSuccessModal, PasswordField, SelectField, TextField, use_form_provider};
+use crate::forms::{Form, FormSuccessModal, PasswordField, SelectField, TextField};
+use crate::hooks::{use_current_user, use_form_provider};
 use crate::routes::Routes;
 use crate::server_fns::attempt_to_register;
-use crate::use_current_user;
 use crate::utils::{DataStorageTrait, data_storage};
 
 #[component]
 pub fn RegisterPage() -> Element {
-    use_form_provider(attempt_to_register);
+    use_form_provider("register".to_owned(), attempt_to_register);
 
     let navigator = use_navigator();
     let mut current_user = use_current_user();

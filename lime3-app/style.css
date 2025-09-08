@@ -92,7 +92,7 @@
 
 @layer components {
     /* Loading overlay */
-    @keyframes loading-pulse {
+    @keyframes loading-overlay-pulse {
         0% {
             background-color: #333;
             box-shadow: 0 0 0 0px #333;
@@ -111,8 +111,8 @@
             background-color 0.3s;
     }
 
-    .loading-overlay .loading-pulse {
-        @apply bottom-[14px] left-[14px] m-auto h-[100px] w-[100px] rounded-full animate-[loading-pulse_1.5s_infinite];
+    .loading-overlay .loading-overlay-pulse {
+        @apply bottom-[14px] left-[14px] m-auto h-[100px] w-[100px] rounded-full animate-[loading-overlay-pulse_1.5s_infinite];
     }
 
     .loading-overlay figure {
@@ -124,7 +124,7 @@
     }
 
     .loading-overlay img,
-    .loading-overlay .loading-pulse {
+    .loading-overlay .loading-overlay-pulse {
         @apply absolute;
 
         transition:
@@ -132,12 +132,12 @@
             opacity 0.3s;
     }
 
-    .loading-overlay.is-done {
+    .loading-overlay.loading-overlay-hidden {
         @apply bg-[#0000] invisible;
     }
 
-    .loading-overlay.is-done img,
-    .loading-overlay.is-done .loading-pulse {
+    .loading-overlay.loading-overlay-hidden img,
+    .loading-overlay.loading-overlay-hidden .loading-overlay-pulse {
         @apply invisible opacity-0;
     }
 }

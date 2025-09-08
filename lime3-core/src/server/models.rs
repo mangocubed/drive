@@ -9,7 +9,9 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
-use crate::server::commands::{get_plan_by_id, get_used_space_by_user, verify_password};
+use crate::server::commands::{
+    folder_is_trashed, get_folder_by_id, get_plan_by_id, get_used_space_by_user, verify_password,
+};
 use crate::server::config::USERS_CONFIG;
 
 use super::config::STORAGE_CONFIG;
@@ -32,6 +34,7 @@ pub struct File<'a> {
     pub media_type: Cow<'a, str>,
     pub byte_size: i64,
     pub md5_checksum: Cow<'a, str>,
+    pub trashed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -58,6 +61,18 @@ impl File<'_> {
 
     pub fn name_without_extension(&self) -> &str {
         self.name.split('.').collect::<Vec<&str>>()[0]
+    }
+
+    pub async fn parent_folder(&self) -> Option<Folder<'_>> {
+        if let Some(parent_folder_id) = self.parent_folder_id {
+            Some(
+                get_folder_by_id(parent_folder_id, None)
+                    .await
+                    .expect("Could not get parent folder"),
+            )
+        } else {
+            None
+        }
     }
 
     pub fn preview_url(&self) -> String {
@@ -139,6 +154,68 @@ impl File<'_> {
     }
 }
 
+impl<'a> From<&FolderItem<'a>> for File<'a> {
+    fn from(item: &FolderItem<'a>) -> Self {
+        Self {
+            id: item.id,
+            user_id: item.user_id,
+            parent_folder_id: item.parent_folder_id,
+            name: item.name.clone(),
+            visibility: item.visibility,
+            media_type: Cow::Borrowed(""),
+            byte_size: 0,
+            md5_checksum: Cow::Borrowed(""),
+            trashed_at: None,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+        }
+    }
+}
+
+pub struct Folder<'a> {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub parent_folder_id: Option<Uuid>,
+    pub name: Cow<'a, str>,
+    pub visibility: FileVisibility,
+    pub trashed_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl Folder<'_> {
+    pub async fn is_trashed(&self) -> bool {
+        folder_is_trashed(self).await
+    }
+
+    pub async fn parent_folder(&self) -> Option<Folder<'_>> {
+        if let Some(parent_folder_id) = self.parent_folder_id {
+            Some(
+                get_folder_by_id(parent_folder_id, None)
+                    .await
+                    .expect("Could not get parent folder"),
+            )
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> From<&FolderItem<'a>> for Folder<'a> {
+    fn from(item: &FolderItem<'a>) -> Self {
+        Self {
+            id: item.id,
+            user_id: item.user_id,
+            parent_folder_id: item.parent_folder_id,
+            name: item.name.clone(),
+            visibility: item.visibility,
+            trashed_at: None,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+        }
+    }
+}
+
 pub struct FolderItem<'a> {
     pub id: Uuid,
     pub is_file: bool,
@@ -158,16 +235,14 @@ impl FolderItem<'_> {
             None
         }
     }
-}
 
-pub struct Folder<'a> {
-    pub id: Uuid,
-    pub user_id: Uuid,
-    pub parent_folder_id: Option<Uuid>,
-    pub name: Cow<'a, str>,
-    pub visibility: FileVisibility,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub fn url(&self) -> Option<String> {
+        if self.is_file {
+            Some(format!("/storage/files/{}", self.id))
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Serialize)]

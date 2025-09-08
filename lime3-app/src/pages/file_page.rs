@@ -1,14 +1,18 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::components::PageTitle;
-use crate::icons::ArrowDownTrayOutline;
+use crate::components::{FileMenu, PageTitle};
+use crate::hooks::use_resource_with_loader;
 use crate::routes::Routes;
 use crate::server_fns::get_file;
 
 #[component]
 pub fn FilePage(id: ReadOnlySignal<Uuid>) -> Element {
-    let file = use_resource(move || async move { get_file(id()).await.ok().flatten() });
+    let navigator = use_navigator();
+    let file = use_resource_with_loader(
+        "file".to_owned(),
+        move || async move { get_file(id()).await.ok().flatten() },
+    );
     let page_title = use_memo(move || {
         if let Some(Some(file)) = &*file.read() {
             let mut title = "Home > ".to_owned();
@@ -29,11 +33,12 @@ pub fn FilePage(id: ReadOnlySignal<Uuid>) -> Element {
             None
         }
     });
+
     rsx! {
         if let Some(Some(file)) = &*file.read() {
             PageTitle { {page_title()} }
 
-            h1 { class: "h1 breadcrumbs",
+            h1 { class: "h2 breadcrumbs",
                 ul {
                     li {
                         Link { to: Routes::home(), "Home" }
@@ -47,21 +52,20 @@ pub fn FilePage(id: ReadOnlySignal<Uuid>) -> Element {
                 }
             }
 
+            div { class: "text-right",
+                FileMenu {
+                    file: file.clone(),
+                    on_trashed: move |_| {
+                        navigator.push(Routes::home());
+                    },
+                }
+            }
+
             div { class: "my-4",
                 img {
                     class: "m-auto max-h-[calc(100vh-2rem)]",
                     src: file.preview_url.clone(),
                     alt: file.name.clone(),
-                }
-            }
-
-            div { class: "flex justify-center",
-                a {
-                    class: "btn btn-outline m-auto",
-                    download: file.name.clone(),
-                    href: file.url.clone(),
-                    ArrowDownTrayOutline {}
-                    "Download"
                 }
             }
         }

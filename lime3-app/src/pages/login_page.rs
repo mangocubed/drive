@@ -2,15 +2,15 @@ use dioxus::prelude::*;
 use serde_json::Value;
 
 use crate::components::PageTitle;
-use crate::forms::{Form, FormSuccessModal, PasswordField, TextField, use_form_provider};
+use crate::forms::{Form, FormSuccessModal, PasswordField, TextField};
+use crate::hooks::{use_current_user, use_form_provider};
 use crate::routes::Routes;
 use crate::server_fns::attempt_to_login;
-use crate::use_current_user;
 use crate::utils::{DataStorageTrait, data_storage};
 
 #[component]
 pub fn LoginPage() -> Element {
-    use_form_provider(attempt_to_login);
+    use_form_provider("login".to_owned(), attempt_to_login);
 
     let navigator = use_navigator();
     let mut current_user = use_current_user();

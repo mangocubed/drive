@@ -10,7 +10,7 @@ use lime3_core::inputs::{LoginInput, RegisterInput};
 #[cfg(feature = "server")]
 use lime3_core::server::commands::{authenticate_user, delete_access_token, insert_access_token, insert_user};
 
-use crate::forms::FormStatus;
+use crate::hooks::FormStatus;
 
 use super::{ServFnClient, ServFnResult};
 

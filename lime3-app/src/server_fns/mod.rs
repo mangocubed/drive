@@ -31,11 +31,9 @@ use server_fn::response::browser::BrowserResponse;
 use lime3_core::inputs::{FileInput, FolderInput};
 
 #[cfg(feature = "server")]
-use lime3_core::server::commands::*;
-#[cfg(feature = "server")]
 use lime3_core::server::models::{AccessToken, User};
 
-use crate::forms::FormStatus;
+use crate::hooks::FormStatus;
 use crate::presenters::{FilePresenter, FolderItemPresenter, FolderPresenter, PlanPresenter, UserPresenter};
 use crate::routes::Routes;
 
@@ -43,8 +41,10 @@ use crate::routes::Routes;
 use crate::presenters::AsyncInto;
 
 mod login_server_fns;
+mod trash_server_fns;
 
 pub use login_server_fns::*;
+pub use trash_server_fns::*;
 
 #[cfg(feature = "server")]
 pub type ServFnClient = MockServerFnClient;
@@ -170,7 +170,7 @@ impl ServFnError {
 
 #[server(client = ServFnClient)]
 pub async fn attempt_to_confirm_plan_checkout(checkout_id: Uuid) -> ServFnResult<String> {
-    let result = confirm_plan_checkout(checkout_id).await;
+    let result = lime3_core::server::commands::confirm_plan_checkout(checkout_id).await;
 
     match result {
         Ok(_) => Ok("Subscription upgraded successfully".to_owned()),
@@ -184,7 +184,7 @@ pub async fn attempt_to_create_folder(input: FolderInput) -> ServFnResult<FormSt
 
     let user = extract_user().await?.unwrap();
 
-    let result = insert_folder(&user, &input).await;
+    let result = lime3_core::server::commands::insert_folder(&user, &input).await;
 
     match result {
         Ok(_) => Ok(FormStatus::Success(
@@ -200,11 +200,11 @@ pub async fn attempt_to_create_plan_checkout(plan_id: Uuid, is_yearly: bool) -> 
     require_login().await?;
 
     let user = extract_user().await?.unwrap();
-    let plan = get_plan_by_id(plan_id)
+    let plan = lime3_core::server::commands::get_plan_by_id(plan_id)
         .await
         .map_err(|_| ServFnError::Other("Could not get plan".to_owned()))?;
 
-    let result = create_user_plan_checkout(&user, &plan, is_yearly).await;
+    let result = lime3_core::server::commands::create_user_plan_checkout(&user, &plan, is_yearly).await;
 
     match result {
         Ok(checkout) => Ok(checkout.url),
@@ -218,7 +218,7 @@ pub async fn attempt_to_upload_file(input: FileInput) -> ServFnResult<bool> {
 
     let user = extract_user().await?.unwrap();
 
-    let result = insert_file(&user, &input).await;
+    let result = lime3_core::server::commands::insert_file(&user, &input).await;
 
     Ok(result.is_ok())
 }
@@ -238,7 +238,9 @@ async fn extract_bearer() -> ServFnResult<Option<Bearer>> {
 #[cfg(feature = "server")]
 async fn extract_access_token<'a>() -> ServFnResult<Option<AccessToken<'a>>> {
     if let Some(bearer) = extract_bearer().await? {
-        Ok(get_access_token(bearer.token()).await.ok())
+        Ok(lime3_core::server::commands::get_access_token(bearer.token())
+            .await
+            .ok())
     } else {
         Ok(None)
     }
@@ -247,7 +249,9 @@ async fn extract_access_token<'a>() -> ServFnResult<Option<AccessToken<'a>>> {
 #[cfg(feature = "server")]
 async fn extract_user<'a>() -> ServFnResult<Option<User<'a>>> {
     if let Some(bearer) = extract_bearer().await? {
-        Ok(get_user_by_access_token(bearer.token()).await.ok())
+        Ok(lime3_core::server::commands::get_user_by_access_token(bearer.token())
+            .await
+            .ok())
     } else {
         Ok(None)
     }
@@ -260,16 +264,16 @@ pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResul
     let user = extract_user().await?.unwrap();
     let parent_folder = if let Some(id) = parent_folder_id {
         Some(
-            get_folder_by_id(id, Some(&user))
+            lime3_core::server::commands::get_folder_by_id(id, Some(&user))
                 .await
                 .map_err(|_| ServFnError::Other("Could not get parent folder".to_owned()))?,
         )
     } else {
         None
     };
-    let folder_items = get_all_folder_items_by_user(&user, parent_folder.as_ref())
+    let folder_items = lime3_core::server::commands::get_all_folder_items(Some(&user), parent_folder.as_ref())
         .await
-        .map_err(|_| ServFnError::Other("Could not get folders".to_owned()))?;
+        .map_err(|_| ServFnError::Other("Could not get folder items".to_owned()))?;
 
     Ok(futures::future::join_all(folder_items.iter().map(|folder_item| folder_item.async_into())).await)
 }
@@ -289,7 +293,7 @@ pub async fn get_file(id: Uuid) -> ServFnResult<Option<FilePresenter>> {
 
     let user = extract_user().await?.unwrap();
 
-    let result = get_file_by_id(id, Some(&user)).await;
+    let result = lime3_core::server::commands::get_file_by_id(id, Some(&user)).await;
 
     Ok(if let Ok(file) = result {
         Some(file.async_into().await)
@@ -304,7 +308,7 @@ pub async fn get_folder(id: Uuid) -> ServFnResult<Option<FolderPresenter>> {
 
     let user = extract_user().await?.unwrap();
 
-    let result = get_folder_by_id(id, Some(&user)).await;
+    let result = lime3_core::server::commands::get_folder_by_id(id, Some(&user)).await;
 
     Ok(if let Ok(folder) = result {
         Some(folder.async_into().await)
@@ -317,7 +321,7 @@ pub async fn get_folder(id: Uuid) -> ServFnResult<Option<FolderPresenter>> {
 pub async fn get_all_available_plans() -> ServFnResult<Vec<PlanPresenter>> {
     require_login().await?;
 
-    Ok(get_all_plans()
+    Ok(lime3_core::server::commands::get_all_plans()
         .await
         .map_err(|_| ServFnError::Other("Could not get plans".to_owned()))?
         .iter()

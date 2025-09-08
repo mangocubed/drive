@@ -12,7 +12,7 @@ axum-extra = { version = "0.10.1", features = [
 bytesize = { workspace = true, optional = true }
 dioxus = { version = "0.7.0-rc.0", features = ["router", "fullstack"] }
 directories = { version = "6.0.0", optional = true }
-futures = "0.3.31"
+futures = { workspace = true }
 headers = { version = "0.4.1", optional = true }
 jni = { version = "0.21.1", default-features = false, optional = true }
 reqwest = { version = "0.12.23", default-features = false, optional = true }

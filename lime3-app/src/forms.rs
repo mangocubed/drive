@@ -1,36 +1,9 @@
-use std::collections::HashMap;
-use std::future::IntoFuture;
-
 use dioxus::prelude::*;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use validator::ValidationErrors;
 
 use crate::components::Modal;
+use crate::hooks::{FormStatus, use_form_context};
 use crate::icons::{EyeMini, EyeSlashMini};
-use crate::server_fns::ServFnResult;
-
-#[derive(Clone, PartialEq)]
-pub struct FormProvider {
-    action: Callback<HashMap<String, FormValue>>,
-    pub status: ReadOnlySignal<FormStatus>,
-}
-
-impl FormProvider {
-    fn is_pending(&self) -> bool {
-        *self.status.read() == FormStatus::Pending
-    }
-}
-
-#[derive(Clone, Default, Deserialize, PartialEq, Serialize)]
-pub enum FormStatus {
-    #[default]
-    Nothing,
-    Pending,
-    Success(String, Value),
-    Failed(String, ValidationErrors),
-}
 
 fn on_keydown(event: KeyboardEvent) {
     if event.key() == Key::Enter {
@@ -54,51 +27,6 @@ fn use_error_memo(id: String) -> Memo<Option<String>> {
     })
 }
 
-fn use_form_context() -> FormProvider {
-    use_context()
-}
-
-pub fn use_form_provider<
-    FA: Fn(I) -> R + Copy + 'static,
-    I: Clone + DeserializeOwned + 'static,
-    R: IntoFuture<Output = ServFnResult<FormStatus>>,
->(
-    action: FA,
-) -> FormProvider {
-    let mut status = use_signal(FormStatus::default);
-
-    let action = use_callback(move |input: HashMap<String, FormValue>| {
-        *status.write() = FormStatus::Pending;
-
-        let input = serde_json::from_value(
-            input
-                .iter()
-                .map(|(name, value)| (name.clone(), value.as_value()))
-                .collect(),
-        )
-        .expect("Could not get input");
-
-        spawn(async move {
-            let result = action(input).await;
-
-            match result {
-                Ok(response) => {
-                    *status.write() = response;
-                }
-                Err(ServerFnError::ServerError(error)) => {
-                    error.run_action();
-                }
-                _ => (),
-            }
-        });
-    });
-
-    use_context_provider(|| FormProvider {
-        action,
-        status: status.into(),
-    })
-}
-
 #[component]
 pub fn Form(children: Element, #[props(optional)] on_success: Callback<Value>) -> Element {
     let form_context = use_form_context();
@@ -117,7 +45,7 @@ pub fn Form(children: Element, #[props(optional)] on_success: Callback<Value>) -
             onsubmit: move |event| {
                 event.prevent_default();
 
-                form_context.action.call(event.data().values());
+                form_context.callback.call(event.data().values());
             },
             if let FormStatus::Failed(message, _) = &*form_context.status.read() {
                 div { class: "py-2 has-[div:empty]:hidden",

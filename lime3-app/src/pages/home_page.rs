@@ -7,7 +7,7 @@ pub fn HomePage() -> Element {
     rsx! {
         PageTitle { "Home" }
 
-        h1 { class: "h1", "Home" }
+        h1 { class: "h2 breadcrumbs", "Home" }
 
         FileManager {}
     }
