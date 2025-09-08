@@ -50,12 +50,26 @@ impl AsyncInto<FilePresenter> for File<'_> {
     }
 }
 
+impl From<&FolderItemPresenter> for FilePresenter {
+    fn from(folder_item: &FolderItemPresenter) -> Self {
+        FilePresenter {
+            id: folder_item.id,
+            name: folder_item.name.clone(),
+            visibility: folder_item.visibility,
+            parent_folders: vec![],
+            url: folder_item.url.clone().unwrap(),
+            preview_url: folder_item.preview_url.clone().unwrap(),
+        }
+    }
+}
+
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct FolderItemPresenter {
     pub id: Uuid,
     pub is_file: bool,
     pub name: String,
     pub visibility: FileVisibility,
+    pub url: Option<String>,
     pub preview_url: Option<String>,
 }
 
@@ -80,6 +94,7 @@ impl AsyncInto<FolderItemPresenter> for FolderItem<'_> {
             is_file: self.is_file,
             name: self.name.to_string(),
             visibility: self.visibility,
+            url: self.url(),
             preview_url: self.preview_url(),
         }
     }
@@ -114,6 +129,17 @@ impl AsyncInto<FolderPresenter> for Folder<'_> {
             name: self.name.to_string(),
             visibility: self.visibility,
             parent_folders,
+        }
+    }
+}
+
+impl From<&FolderItemPresenter> for FolderPresenter {
+    fn from(folder_item: &FolderItemPresenter) -> Self {
+        FolderPresenter {
+            id: folder_item.id,
+            name: folder_item.name.to_string(),
+            visibility: folder_item.visibility,
+            parent_folders: vec![],
         }
     }
 }

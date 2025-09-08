@@ -3,7 +3,7 @@ import { test, expect, Page } from "@playwright/test";
 import { faker } from "@faker-js/faker/locale/en";
 
 export async function waitForLoadingOverlay(page) {
-    await expect(page.locator(".loading-overlay")).toHaveClass(/is-done/);
+    await expect(page.locator(".loading-overlay")).toHaveClass(/loading-overlay-hidden/);
 }
 
 export async function loginAndGoToHome(page) {

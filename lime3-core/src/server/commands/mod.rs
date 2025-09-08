@@ -19,14 +19,18 @@ use crate::inputs::{FileInput, FolderInput, LoginInput};
 use super::config::STORAGE_CONFIG;
 use super::constants::*;
 use super::db_pool;
-use super::models::{File, Folder, FolderItem, User};
+use super::models::{File, Folder, User};
 
 mod access_token_commands;
+mod folder_item_commands;
 mod plan_commands;
+mod trash_commands;
 mod user_commands;
 
 pub use access_token_commands::*;
+pub use folder_item_commands::*;
 pub use plan_commands::*;
+pub use trash_commands::*;
 pub use user_commands::*;
 
 pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, ValidationErrors> {
@@ -118,6 +122,7 @@ pub async fn get_file_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Resu
             media_type,
             byte_size,
             md5_checksum,
+            trashed_at,
             created_at,
             updated_at
         FROM files WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2) LIMIT 1"#,
@@ -128,60 +133,6 @@ pub async fn get_file_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Resu
     .await
 }
 
-pub async fn get_all_folder_items_by_user<'a>(
-    user: &User<'_>,
-    parent_folder: Option<&Folder<'_>>,
-) -> sqlx::Result<Vec<FolderItem<'a>>> {
-    let db_pool = db_pool().await;
-    let parent_folder_id = parent_folder.map(|f| f.id);
-
-    sqlx::query_as!(
-        FolderItem,
-        r#"SELECT
-            id as "id!",
-            user_id as "user_id!",
-            parent_folder_id,
-            is_file as "is_file!",
-            name as "name!",
-            "visibility!: FileVisibility",
-            created_at as "created_at!",
-            updated_at
-        FROM (
-            (
-                SELECT
-                    id,
-                    user_id,
-                    parent_folder_id,
-                    FALSE as is_file,
-                    name,
-                    visibility as "visibility!: FileVisibility",
-                    created_at,
-                    updated_at
-                FROM folders
-                WHERE user_id = $1 AND (($2::uuid IS NULL AND parent_folder_id IS NULL) OR parent_folder_id = $2)
-                ORDER BY name ASC
-            ) UNION ALL (
-                SELECT
-                    id,
-                    user_id,
-                    parent_folder_id,
-                    TRUE as is_file,
-                    name,
-                    visibility as "visibility!: FileVisibility",
-                    created_at,
-                    updated_at
-                FROM files
-                WHERE user_id = $1 AND (($2::uuid IS NULL AND parent_folder_id IS NULL) OR parent_folder_id = $2)
-                ORDER BY name ASC
-            )
-        )"#,
-        user.id,          // $1
-        parent_folder_id, // $2
-    )
-    .fetch_all(db_pool)
-    .await
-}
-
 pub async fn get_folder_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Result<Folder<'a>> {
     let db_pool = db_pool().await;
     let user_id = user.map(|u| u.id);
@@ -189,7 +140,14 @@ pub async fn get_folder_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Re
     sqlx::query_as!(
         Folder,
         r#"SELECT
-            id, user_id, parent_folder_id, name, visibility as "visibility!: FileVisibility", created_at, updated_at
+            id,
+            user_id,
+            parent_folder_id,
+            name,
+            visibility as "visibility!: FileVisibility",
+            trashed_at,
+            created_at,
+            updated_at
         FROM folders WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2) LIMIT 1"#,
         id,      // $1
         user_id, // $2
@@ -288,6 +246,7 @@ pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<
             media_type,
             byte_size,
             md5_checksum,
+            trashed_at,
             created_at,
             updated_at"#,
         user.id,                  // $1
@@ -345,7 +304,14 @@ pub async fn insert_folder<'a>(user: &User<'_>, input: &FolderInput) -> Result<F
         Folder,
         r#"INSERT INTO folders (user_id, parent_folder_id, name, visibility) VALUES ($1, $2, $3, $4)
         RETURNING
-            id, user_id, parent_folder_id, name, visibility as "visibility!: FileVisibility", created_at, updated_at"#,
+            id,
+            user_id,
+            parent_folder_id,
+            name,
+            visibility as "visibility!: FileVisibility",
+            trashed_at,
+            created_at,
+            updated_at"#,
         user.id,                // $1
         input.parent_folder_id, // $2
         input.name,             // $3
@@ -404,7 +370,7 @@ mod tests {
 
         insert_test_folders(7, Some(&user), None).await;
 
-        let result = get_all_folder_items_by_user(&user, None).await;
+        let result = get_all_folder_items(Some(&user), None).await;
 
         assert!(result.is_ok());
 
@@ -420,7 +386,7 @@ mod tests {
 
         insert_test_folders(7, Some(&user), Some(&parent_folder)).await;
 
-        let result = get_all_folder_items_by_user(&user, Some(&parent_folder)).await;
+        let result = get_all_folder_items(Some(&user), Some(&parent_folder)).await;
 
         assert!(result.is_ok());
 
@@ -433,7 +399,7 @@ mod tests {
     async fn should_get_zero_folders_by_user() {
         let user = insert_test_user(None).await;
 
-        let result = get_all_folder_items_by_user(&user, None).await;
+        let result = get_all_folder_items(Some(&user), None).await;
 
         assert!(result.is_ok());
 

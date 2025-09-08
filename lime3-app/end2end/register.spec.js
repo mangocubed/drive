@@ -43,7 +43,7 @@ test("should register a new user", async ({ page }) => {
 test("should fail to register a new user", async ({ page }) => {
     await page.goto("/register");
 
-    await expect(page.locator(".loading-overlay")).toHaveClass(/is-done/);
+    await expect(page.locator(".loading-overlay")).toHaveClass(/loading-overlay-hidden/);
     await expect(page.locator("h1", { hasText: "Register" })).toBeVisible();
 
     await page.getByRole("button", { name: "Submit" }).click();

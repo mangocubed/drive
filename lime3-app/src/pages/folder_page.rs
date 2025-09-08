@@ -4,11 +4,13 @@ use uuid::Uuid;
 use crate::components::{FileManager, PageTitle};
 use crate::routes::Routes;
 use crate::server_fns::get_folder;
+use crate::use_resource_with_loader;
 
 #[component]
 pub fn FolderPage(id: ReadOnlySignal<Uuid>) -> Element {
-    let parent_folder_id = use_memo(move || Some(id()));
-    let folder = use_resource(move || async move { get_folder(id()).await.ok().flatten() });
+    let folder = use_resource_with_loader("folder".to_owned(), move || async move {
+        get_folder(id()).await.ok().flatten()
+    });
     let page_title = use_memo(move || {
         if let Some(Some(folder)) = &*folder.read() {
             let mut title = "Home > ".to_owned();
@@ -34,7 +36,7 @@ pub fn FolderPage(id: ReadOnlySignal<Uuid>) -> Element {
         if let Some(Some(folder)) = &*folder.read() {
             PageTitle { {page_title()} }
 
-            h1 { class: "h1 breadcrumbs",
+            h1 { class: "h2 breadcrumbs",
                 ul {
                     li {
                         Link { to: Routes::home(), "Home" }
@@ -48,7 +50,10 @@ pub fn FolderPage(id: ReadOnlySignal<Uuid>) -> Element {
                 }
             }
 
-            FileManager { min_visibility: folder.visibility, parent_folder_id }
+            FileManager {
+                min_visibility: folder.visibility,
+                folder: Some(folder.clone()),
+            }
         }
     }
 }

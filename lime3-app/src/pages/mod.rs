@@ -5,6 +5,7 @@ mod home_page;
 mod login_page;
 mod register_page;
 mod storage_page;
+mod trash_page;
 
 pub use confirm_checkout_page::ConfirmCheckoutPage;
 pub use file_page::FilePage;
@@ -13,3 +14,4 @@ pub use home_page::HomePage;
 pub use login_page::LoginPage;
 pub use register_page::RegisterPage;
 pub use storage_page::StoragePage;
+pub use trash_page::TrashPage;

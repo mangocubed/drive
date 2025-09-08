@@ -17,6 +17,8 @@ pub enum Routes {
         FolderPage { id: Uuid },
         #[route("/storage")]
         StoragePage {},
+        #[route("/trash")]
+        TrashPage {},
     #[end_layout]
 
     #[layout(GuestLayout)]
@@ -45,6 +47,10 @@ impl Routes {
 
     pub fn storage() -> Self {
         Routes::StoragePage {}
+    }
+
+    pub fn trash() -> Self {
+        Routes::TrashPage {}
     }
 
     pub fn login() -> Self {

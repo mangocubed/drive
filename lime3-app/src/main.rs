@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 mod components;
 mod forms;
+mod hooks;
 mod icons;
 mod layouts;
 mod pages;
@@ -17,11 +18,13 @@ mod routes;
 mod server_fns;
 mod utils;
 
-use presenters::UserPresenter;
+use hooks::use_resource_with_loader;
 use routes::Routes;
 use server_fns::get_current_user;
+use utils::loader_is_active;
 
 const FAVICON_ICO: Asset = asset!("assets/favicon.ico");
+const ICON_SVG: Asset = asset!("assets/icon.svg");
 const STYLE_CSS: Asset = asset!("assets/style.css");
 
 #[cfg(feature = "server")]
@@ -87,20 +90,39 @@ async fn get_storage_file(Path(id): Path<Uuid>, Query(query): Query<FileQuery>) 
     Ok((headers, body))
 }
 
-fn use_current_user() -> Resource<Option<UserPresenter>> {
-    use_context()
-}
-
 #[component]
 fn App() -> Element {
-    let current_user = use_resource(async || get_current_user().await.ok().flatten());
+    let current_user = use_resource_with_loader("current-user".to_owned(), async || {
+        get_current_user().await.ok().flatten()
+    });
+    let mut app_is_loading = use_signal(|| true);
 
     use_context_provider(|| current_user);
+
+    use_effect(move || {
+        if current_user.read().is_some() {
+            app_is_loading.set(false);
+        }
+    });
 
     rsx! {
         document::Link { rel: "icon", href: FAVICON_ICO }
         document::Link { rel: "stylesheet", href: STYLE_CSS }
 
         Router::<Routes> {}
+
+        div {
+            class: "loading loading-spinner loading-xl fixed bottom-3 right-3",
+            class: if !loader_is_active() { "hidden" },
+        }
+
+        div {
+            class: "loading-overlay",
+            class: if !app_is_loading() { "loading-overlay-hidden" },
+            figure {
+                div { class: "loading-overlay-pulse" }
+                img { src: ICON_SVG }
+            }
+        }
     }
 }

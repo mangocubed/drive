@@ -1,13 +1,13 @@
 use dioxus::prelude::*;
 
+use crate::ICON_SVG;
 use crate::routes::Routes;
 use crate::server_fns::is_logged_in;
-
-use super::{ICON_SVG, LoadingOverlay};
+use crate::use_resource_with_loader;
 
 #[component]
 pub fn GuestLayout() -> Element {
-    let is_logged_in = use_resource(is_logged_in);
+    let is_logged_in = use_resource_with_loader("logged-in".to_owned(), is_logged_in);
     let navigator = use_navigator();
 
     use_effect(move || {
@@ -27,7 +27,5 @@ pub fn GuestLayout() -> Element {
         }
 
         main { class: "main", Outlet::<Routes> {} }
-
-        LoadingOverlay {}
     }
 }
