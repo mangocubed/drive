@@ -5,22 +5,20 @@ on:
         branches: [main]
     pull_request:
         branches: [main]
-    pull_request_target:
-        branches: [main]
 
 jobs:
-    # code_analysis:
-    #     uses: ./.github/workflows/code-analysis.yaml
+    code_analysis:
+        uses: ./.github/workflows/code-analysis.yaml
 
-    # tests:
-    #     needs: [code_analysis]
-    #     uses: ./.github/workflows/tests.yaml
+    tests:
+        needs: [code_analysis]
+        uses: ./.github/workflows/tests.yaml
 
     build:
-        # needs: [tests]
+        needs: [tests]
         uses: ./.github/workflows/build.yaml
 
     deploy:
         needs: [build]
-        # if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/workflows/deploy.yaml
