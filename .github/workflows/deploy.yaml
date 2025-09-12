@@ -14,4 +14,6 @@ jobs:
               with:
                   name: lime3_cli_build
             - name: Run deploy script
-              run: ${{ secrets.DEPLOY_SCRIPT }}
+              env:
+                  DEPLOY_SCRIPT: ${{ secrets.DEPLOY_SCRIPT }}
+              run: $DEPLOY_SCRIPT
