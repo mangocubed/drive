@@ -31,6 +31,7 @@ jobs:
               with:
                   name: lime3_app_build
                   path: ./target/dx/lime3-app/release/web/
+                  retention-days: 1
 
     build_cli:
         runs-on: ubuntu-24.04
@@ -53,3 +54,4 @@ jobs:
               with:
                   name: lime3_cli_build
                   path: ./target/release/lime3-cli
+                  retention-days: 1

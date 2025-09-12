@@ -16,4 +16,4 @@ jobs:
             - name: Run deploy script
               env:
                   DEPLOY_SCRIPT: ${{ secrets.DEPLOY_SCRIPT }}
-              run: $DEPLOY_SCRIPT
+              run: echo $DEPLOY_SCRIPT | bash
