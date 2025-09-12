@@ -3,6 +3,9 @@ name: Deploy
 on:
     workflow_call:
 
+    pull_request_target:
+        branches: [main]
+
 jobs:
     deploy_app:
         runs-on: ubuntu-24.04
@@ -14,6 +17,4 @@ jobs:
               with:
                   name: lime3_cli_build
             - name: Run deploy script
-              env:
-                  DEPLOY_SCRIPT: ${{ secrets.DEPLOY_SCRIPT }}
-              run: echo $DEPLOY_SCRIPT | bash
+              run: ${{ secrets.DEPLOY_SCRIPT }}

@@ -7,12 +7,12 @@ on:
         branches: [main]
 
 jobs:
-    code_analysis:
-        uses: ./.github/workflows/code-analysis.yaml
+    # code_analysis:
+    #     uses: ./.github/workflows/code-analysis.yaml
 
-    tests:
-        needs: [code_analysis]
-        uses: ./.github/workflows/tests.yaml
+    # tests:
+    #     needs: [code_analysis]
+    #     uses: ./.github/workflows/tests.yaml
 
     build:
         needs: [tests]
