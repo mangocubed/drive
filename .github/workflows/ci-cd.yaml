@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
     push:
@@ -10,10 +10,15 @@ jobs:
     code_analysis:
         uses: ./.github/workflows/code-analysis.yaml
 
-    build:
+    tests:
         needs: [code_analysis]
+        uses: ./.github/workflows/tests.yaml
+
+    build:
+        needs: [tests]
         uses: ./.github/workflows/build.yaml
 
-    tests:
+    deploy:
         needs: [build]
-        uses: ./.github/workflows/tests.yaml
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/workflows/deploy.yaml
