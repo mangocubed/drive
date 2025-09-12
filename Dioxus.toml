@@ -1,4 +1,5 @@
 [application]
+name = "Lime3 (dev)"
 
 [web.app]
 
@@ -19,3 +20,6 @@ script = []
 # Javascript code file
 # serve: [dev-server] only
 script = []
+
+[bundle]
+identifier = "com.lime3.app"
