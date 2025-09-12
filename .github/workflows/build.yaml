@@ -8,7 +8,7 @@ env:
     DATABASE_URL: postgres://lime3:lime3@127.0.0.1:5432/lime3_test
 
 jobs:
-    build_application:
+    build_app:
         runs-on: ubuntu-24.04
         services:
             postgres:
@@ -23,12 +23,14 @@ jobs:
         steps:
             - uses: actions/checkout@v5
             - uses: ./.github/actions/setup-dioxus
-            - name: Build for web
-              run: dx build --package lime3-app --web --release
-            - name: Build for linux
-              run: dx build --package lime3-app --linux --webview --release
-            - name: Build for android
-              run: dx build --package lime3-app --android --webview --release
+            - uses: ./.github/actions/setup-node
+            - run: npm run build
+            - run: dx bundle --package lime3-app --web --release --verbose
+            - if: github.ref == 'refs/heads/main'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: lime3_app_build
+                  path: ./target/dx/lime3-app/release/web/
 
     build_cli:
         runs-on: ubuntu-24.04
@@ -45,11 +47,9 @@ jobs:
         steps:
             - uses: actions/checkout@v5
             - uses: ./.github/actions/setup-dioxus
-            - run: cargo build --bin lime3-cli
-
-    build_stylesheet:
-        runs-on: ubuntu-24.04
-        steps:
-            - uses: actions/checkout@v5
-            - uses: ./.github/actions/setup-node
-            - run: npm run build
+            - run: cargo build --bin lime3-cli --release
+            - if: github.ref == 'refs/heads/main'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: lime3_cli_build
+                  path: ./target/release/lime3-cli

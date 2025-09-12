@@ -1,0 +1,17 @@
+name: Deploy
+
+on:
+    workflow_call:
+
+jobs:
+    deploy_webapp:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/download-artifact@v5
+              with:
+                  name: lime3_app_build
+            - uses: actions/download-artifact@v5
+              with:
+                  name: lime3_cli_build
+            - name: Run deploy script
+              run: ${{ secrets.DEPLOY_SCRIPT }}
