@@ -13,8 +13,10 @@ jobs:
             - uses: actions/download-artifact@v5
               with:
                   name: lime3_app_build
+                  path: builds/app/
             - uses: actions/download-artifact@v5
               with:
                   name: lime3_cli_build
+                  path: builds/
             - name: Run deploy script
               run: ${{ secrets.deploy_script }}
