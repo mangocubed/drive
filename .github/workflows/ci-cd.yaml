@@ -20,7 +20,7 @@ jobs:
 
     deploy:
         needs: [build]
-        # if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: ./.github/workflows/deploy.yaml
         secrets:
             deploy_script: ${{ secrets.DEPLOY_SCRIPT }}
