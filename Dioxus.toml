@@ -1,10 +1,10 @@
 [application]
-name = "Lime3 (dev)"
+name = "Mango³ Drive"
 
 [web.app]
 
 # HTML title tag content
-title = "Lime3 (dev)"
+title = "Mango³ Drive"
 
 # include `assets` in web platform
 [web.resource]
@@ -20,3 +20,6 @@ script = []
 # Javascript code file
 # serve: [dev-server] only
 script = []
+
+[bundle]
+identifier = "app.mango3.drive"

@@ -5,7 +5,7 @@ on:
 
 env:
     CARGO_TERM_COLOR: always
-    DATABASE_URL: postgres://lime3:lime3@127.0.0.1:5432/lime3_test
+    DATABASE_URL: postgres://mango3:mango3@127.0.0.1:5432/drive_test
 
 jobs:
     build_app:
@@ -14,9 +14,9 @@ jobs:
             postgres:
                 image: postgres:17-alpine
                 env:
-                    POSTGRES_USER: lime3
-                    POSTGRES_PASSWORD: lime3
-                    POSTGRES_DB: lime3_test
+                    POSTGRES_USER: mango3
+                    POSTGRES_PASSWORD: mango3
+                    POSTGRES_DB: drive_test
                 ports:
                     - 5432:5432
                 options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
@@ -25,12 +25,12 @@ jobs:
             - uses: ./.github/actions/setup-dioxus
             - uses: ./.github/actions/setup-node
             - run: npm run build
-            - run: dx bundle --package lime3-app --web --release --verbose
+            - run: dx bundle --package drive-app --web --release --verbose
             - if: github.ref == 'refs/heads/main'
               uses: actions/upload-artifact@v4
               with:
-                  name: lime3_app_build
-                  path: ./target/dx/lime3-app/release/web/
+                  name: drive_app_build
+                  path: ./target/dx/drive-app/release/web/
                   retention-days: 1
 
     build_cli:
@@ -39,19 +39,19 @@ jobs:
             postgres:
                 image: postgres:17-alpine
                 env:
-                    POSTGRES_USER: lime3
-                    POSTGRES_PASSWORD: lime3
-                    POSTGRES_DB: lime3_test
+                    POSTGRES_USER: mango3
+                    POSTGRES_PASSWORD: mango3
+                    POSTGRES_DB: drive_test
                 ports:
                     - 5432:5432
                 options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
         steps:
             - uses: actions/checkout@v5
             - uses: ./.github/actions/setup-dioxus
-            - run: cargo build --bin lime3-cli --release
+            - run: cargo build --bin drive-cli --release
             - if: github.ref == 'refs/heads/main'
               uses: actions/upload-artifact@v4
               with:
-                  name: lime3_cli_build
-                  path: ./target/release/lime3-cli
+                  name: cli_build
+                  path: ./target/release/drive-cli
                   retention-days: 1

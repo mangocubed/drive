@@ -1866,6 +1866,69 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
+name = "drive-app"
+version = "0.0.0-alpha.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-extra",
+ "bytesize",
+ "dioxus",
+ "directories",
+ "drive-core",
+ "futures",
+ "headers",
+ "jni",
+ "reqwest",
+ "rust_iso3166",
+ "serde",
+ "serde_json",
+ "tokio",
+ "url",
+ "uuid",
+ "validator",
+ "web-sys",
+]
+
+[[package]]
+name = "drive-cli"
+version = "0.0.0-alpha.0"
+dependencies = [
+ "clap",
+ "drive-core",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "drive-core"
+version = "0.0.0-alpha.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "bytesize",
+ "chrono",
+ "fake",
+ "figment",
+ "file-format",
+ "futures",
+ "image",
+ "md-5",
+ "polar-rs",
+ "rand 0.9.2",
+ "regex",
+ "rust_iso3166",
+ "serde",
+ "sqlx",
+ "strum",
+ "tokio",
+ "url",
+ "uuid",
+ "validator",
+]
+
+[[package]]
 name = "dtoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3490,69 +3553,6 @@ checksum = "db23b9e7e2b7831bbd8aac0bbeeeb7b68cbebc162b227e7052e8e55829a09212"
 dependencies = [
  "libc",
  "x11",
-]
-
-[[package]]
-name = "lime3-app"
-version = "0.0.0-alpha.0"
-dependencies = [
- "anyhow",
- "axum",
- "axum-extra",
- "bytesize",
- "dioxus",
- "directories",
- "futures",
- "headers",
- "jni",
- "lime3-core",
- "reqwest",
- "rust_iso3166",
- "serde",
- "serde_json",
- "tokio",
- "url",
- "uuid",
- "validator",
- "web-sys",
-]
-
-[[package]]
-name = "lime3-cli"
-version = "0.0.0-alpha.0"
-dependencies = [
- "clap",
- "lime3-core",
- "serde_json",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "lime3-core"
-version = "0.0.0-alpha.0"
-dependencies = [
- "anyhow",
- "argon2",
- "bytesize",
- "chrono",
- "fake",
- "figment",
- "file-format",
- "futures",
- "image",
- "md-5",
- "polar-rs",
- "rand 0.9.2",
- "regex",
- "rust_iso3166",
- "serde",
- "sqlx",
- "strum",
- "tokio",
- "url",
- "uuid",
- "validator",
 ]
 
 [[package]]

@@ -13,11 +13,11 @@ jobs:
             - uses: actions/checkout@v5
             - uses: actions/download-artifact@v5
               with:
-                  name: lime3_app_build
+                  name: drive_app_build
                   path: builds/app/
             - uses: actions/download-artifact@v5
               with:
-                  name: lime3_cli_build
+                  name: drive_cli_build
                   path: builds/
             - name: Run deploy script
               run: ${{ secrets.deploy_script }}

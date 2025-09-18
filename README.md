@@ -1,4 +1,4 @@
-# Lime3
+# Mango³ Drive
 
 Cloud storage & digital distribution platform.
 
@@ -7,7 +7,7 @@ Cloud storage & digital distribution platform.
 | Name                          | Type    | Default                                                          |
 | ----------------------------- | ------- | ---------------------------------------------------------------- |
 | DATABASE_MAX_CONNECTIONS      | Integer | 5                                                                |
-| DATABASE_URL                  | String  | postgres://lime3:lime3@127.0.0.1:5432/lime3_dev                  |
+| DATABASE_URL                  | String  | postgres://mango3:mango3@127.0.0.1:5432/drive_dev                |
 | POLAR_BASE_URL                | String  | https://sandbox-api.polar.sh/v1/                                 |
 | POLAR_ACCESS_TOKEN            | String  |                                                                  |
 | POLAR_SUCCESS_BASE_URL        | String  | http://127.0.0.1:8080/                                           |

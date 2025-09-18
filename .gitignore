@@ -1,6 +1,6 @@
 /.zed
-/lime3-app/assets/style.css
-/lime3-app/end2end/output
+/app/assets/style.css
+/app/end2end/output
 /node_modules
 /storage
 /target
