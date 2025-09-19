@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 
-use crate::components::{ConfirmationModal, NavbarBrand};
+use crate::components::{AboutModal, Brand, ConfirmationModal};
 use crate::hooks::use_current_user;
-use crate::icons::{ChevronDownMini, CloudOutline, HomeOutline, TrashOutline};
+use crate::icons::{ChevronDownMini, CloudOutline, HomeOutline, InformationCircleOutline, TrashOutline};
 use crate::routes::Routes;
 use crate::server_fns::attempt_to_logout;
 use crate::utils::{DataStorageTrait, data_storage};
@@ -10,6 +10,7 @@ use crate::utils::{DataStorageTrait, data_storage};
 #[component]
 pub fn UserLayout() -> Element {
     let mut show_logout_confirmation = use_signal(|| false);
+    let mut show_about = use_signal(|| false);
     let navigator = use_navigator();
     let mut current_user = use_current_user();
 
@@ -22,7 +23,9 @@ pub fn UserLayout() -> Element {
     rsx! {
         if let Some(Some(user)) = &*current_user.read() {
             div { class: "navbar bg-base-300 shadow-md px-3",
-                div { class: "navbar-start", NavbarBrand {} }
+                div { class: "navbar-start",
+                    Link { class: "flex gap-2 items-center", to: Routes::home(), Brand {} }
+                }
 
                 div { class: "navbar-end",
                     div { class: "dropdown dropdown-end",
@@ -76,6 +79,7 @@ pub fn UserLayout() -> Element {
                             "data-tip": "Home",
                             Link { to: Routes::home(),
                                 HomeOutline {}
+
                                 span { class: "max-md:hidden", "Home" }
                             }
                         }
@@ -87,6 +91,7 @@ pub fn UserLayout() -> Element {
                             "data-tip": "Trash",
                             Link { to: Routes::trash(),
                                 TrashOutline {}
+
                                 span { class: "max-md:hidden", "Trash" }
                             }
                         }
@@ -118,8 +123,25 @@ pub fn UserLayout() -> Element {
                                 }
                             }
                         }
+
+                        div { class: "divider m-1" }
+
+                        li {
+                            class: "max-md:tooltip max-md:tooltip-right",
+                            "data-tip": "About",
+                            a {
+                                onclick: move |_| {
+                                    *show_about.write() = true;
+                                },
+                                InformationCircleOutline {}
+
+                                span { class: "max-md:hidden", "About" }
+                            }
+                        }
                     }
                 }
+
+                AboutModal { is_open: show_about }
 
                 main { class: "main grow", Outlet::<Routes> {} }
             }

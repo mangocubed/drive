@@ -6,10 +6,13 @@ members = ["app", "cli", "core"]
 version = "0.0.0-alpha.0"
 edition = "2024"
 authors = ["Javier E. <jaedns@gmail.com>"]
+homepage = "https://drive.mango3.app"
+repository = "https://github.com/mangocubed/drive"
 
 [workspace.dependencies]
 anyhow = "1.0.99"
 bytesize = { version = "2.1.0", features = ["serde"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 futures = "0.3.31"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
 rust_iso3166 = "0.1.14"

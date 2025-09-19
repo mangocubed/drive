@@ -3,7 +3,6 @@ use dioxus::prelude::*;
 
 use crate::icons::{ArrowDownTrayOutline, EllipsisVerticalOutline, TrashOutline};
 use crate::presenters::{FilePresenter, FolderPresenter};
-use crate::routes::Routes;
 use crate::server_fns::{attempt_to_move_file_to_trash, attempt_to_move_folder_to_trash, is_logged_in};
 use crate::utils::run_with_loader;
 use crate::{ICON_SVG, LOGO_SVG, use_resource_with_loader};
@@ -12,7 +11,7 @@ mod file_manager;
 mod modals;
 
 pub use file_manager::FileManager;
-pub use modals::{ConfirmationModal, Modal, SubscriptionModal};
+pub use modals::{AboutModal, ConfirmationModal, Modal, SubscriptionModal};
 
 #[component]
 pub fn FileMenu(file: FilePresenter, #[props(into)] on_trashed: Callback<()>) -> Element {
@@ -129,9 +128,9 @@ pub fn LoggedIn(children: Element) -> Element {
 }
 
 #[component]
-pub fn NavbarBrand() -> Element {
+pub fn Brand() -> Element {
     rsx! {
-        Link { class: "flex gap-2 items-center", to: Routes::login(),
+        div { class: "flex gap-2 items-center",
             img { class: "h-[36px] sm:hidden", src: ICON_SVG }
 
             img { class: "h-[36px] max-sm:hidden", src: LOGO_SVG }

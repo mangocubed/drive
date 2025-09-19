@@ -8,6 +8,7 @@ use axum::response::IntoResponse;
 use uuid::Uuid;
 
 mod components;
+mod constants;
 mod forms;
 mod hooks;
 mod icons;

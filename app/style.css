@@ -67,7 +67,7 @@
 }
 
 @utility main {
-    @apply max-w-[1300px] mx-auto p-4;
+    @apply max-w-[1300px] w-full mx-auto p-4;
 }
 
 @utility modal-box {
