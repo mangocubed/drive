@@ -47,7 +47,7 @@ pub fn LoginPage() -> Element {
             }
         }
 
-        div { class: "max-w-[640px] ml-auto mr-auto mt-4 flex flex-col gap-4",
+        div { class: "max-w-[640px] mx-auto mt-5 flex flex-col gap-4",
             Link { class: "btn btn-block btn-outline", to: Routes::register(),
                 "I don't have an account"
             }

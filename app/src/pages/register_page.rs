@@ -2,8 +2,10 @@ use dioxus::prelude::*;
 use serde_json::Value;
 
 use crate::components::PageTitle;
+use crate::constants::{PRIVACY_URL, TERMS_URL};
 use crate::forms::{Form, FormSuccessModal, PasswordField, SelectField, TextField};
 use crate::hooks::{use_current_user, use_form_provider};
+use crate::icons::InformationCircleOutline;
 use crate::routes::Routes;
 use crate::server_fns::attempt_to_register;
 use crate::utils::{DataStorageTrait, data_storage};
@@ -72,9 +74,25 @@ pub fn RegisterPage() -> Element {
                     option { value: country.alpha2, {country.name} }
                 }
             }
+
+            div { class: "alert mt-4 mb-2",
+                InformationCircleOutline {}
+
+                p {
+                    "By submitting this form, you are declaring that you accept our "
+
+                    a { class: "link", href: TERMS_URL, target: "_blank", "Terms of Service" }
+
+                    " and "
+
+                    a { class: "link", href: PRIVACY_URL, target: "_blank", "Privacy Policy" }
+
+                    "."
+                }
+            }
         }
 
-        div { class: "max-w-[640px] ml-auto mr-auto mt-4 flex flex-col gap-4",
+        div { class: "max-w-[640px] mx-auto mt-5 flex flex-col gap-4",
             Link { class: "btn btn-block btn-outline", to: Routes::login(), "Back to login" }
         }
     }

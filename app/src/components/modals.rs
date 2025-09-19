@@ -1,8 +1,53 @@
 use dioxus::prelude::*;
 
+use crate::components::Brand;
+use crate::constants::{COPYRIGHT, PRIVACY_URL, SOURCE_CODE_URL, TERMS_URL};
 use crate::server_fns::{attempt_to_create_plan_checkout, get_all_available_plans};
 use crate::use_resource_with_loader;
 use crate::utils::run_with_loader;
+
+#[component]
+pub fn AboutModal(is_open: Signal<bool>) -> Element {
+    rsx! {
+        Modal { is_open, class: "gap-4 flex flex-col items-center",
+            Brand {}
+
+            div { class: "text-center text-sm opacity-75",
+                p {
+                    "Version: "
+                    {env!("CARGO_PKG_VERSION")}
+                    " ("
+                    {env!("GIT_REV_SHORT")}
+                    ")"
+                }
+
+                p {
+                    "Built on: "
+                    {env!("BUILD_DATETIME")}
+                }
+            }
+
+            div {
+                a { class: "link", href: TERMS_URL, target: "_blank", "Terms of Service" }
+
+                span { class: "opacity-50", " | " }
+
+                a { class: "link", href: PRIVACY_URL, target: "_blank", "Privacy Policy" }
+
+                span { class: "opacity-50", " | " }
+
+                a {
+                    class: "link",
+                    href: SOURCE_CODE_URL.clone(),
+                    target: "_blank",
+                    "Source code"
+                }
+            }
+
+            div { class: "opacity-75", {COPYRIGHT} }
+        }
+    }
+}
 
 #[component]
 pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Callback) -> Element {
