@@ -13,6 +13,6 @@ fn main() {
     };
     let build_datetime = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
 
-    println!("cargo:rustc-env=GIT_REV_SHORT={}", git_rev_short);
-    println!("cargo:rustc-env=BUILD_DATETIME={}", build_datetime);
+    println!("cargo:rustc-env=GIT_REV_SHORT={git_rev_short}");
+    println!("cargo:rustc-env=BUILD_DATETIME={build_datetime}");
 }
