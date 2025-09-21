@@ -7,7 +7,7 @@ use crate::server_fns::get_folder;
 use crate::use_resource_with_loader;
 
 #[component]
-pub fn FolderPage(id: ReadOnlySignal<Uuid>) -> Element {
+pub fn FolderPage(id: ReadSignal<Uuid>) -> Element {
     let folder = use_resource_with_loader("folder".to_owned(), move || async move {
         get_folder(id()).await.ok().flatten()
     });

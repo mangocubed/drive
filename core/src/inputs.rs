@@ -110,3 +110,13 @@ pub struct RegisterInput {
     #[cfg_attr(feature = "server", validate(custom(function = "validate_country_alpha2")))]
     pub country_alpha2: String,
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(feature = "server", derive(Validate))]
+pub struct RenameInput {
+    pub id: Uuid,
+    #[cfg_attr(feature = "server", validate(length(min = 1, max = 256, message = "Can't be blank"),
+        regex(path = *REGEX_FILE_NAME, message = "Is invalid"),
+    ))]
+    pub name: String,
+}

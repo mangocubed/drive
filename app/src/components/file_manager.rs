@@ -80,7 +80,7 @@ pub fn FileManager(
             if let Some(folder) = folder() {
                 FolderMenu {
                     folder,
-                    on_trashed: move |_| {
+                    on_update: move |_| {
                         navigator.push(Routes::home());
                     },
                 }
@@ -122,8 +122,8 @@ pub fn FileManager(
 
                                 div { class: "absolute top-0.5 right-0.5",
                                     FileMenu {
-                                        file: folder_item.into(),
-                                        on_trashed: move |_| all_folder_items.restart(),
+                                        file: folder_item,
+                                        on_update: move |_| all_folder_items.restart(),
                                     }
                                 }
                             } else {
@@ -139,8 +139,8 @@ pub fn FileManager(
 
                                 div { class: "absolute top-0.5 right-0.5",
                                     FolderMenu {
-                                        folder: folder_item.into(),
-                                        on_trashed: move |_| all_folder_items.restart(),
+                                        folder: folder_item,
+                                        on_update: move |_| all_folder_items.restart(),
                                     }
                                 }
                             }
@@ -159,7 +159,7 @@ fn NewFolderModal(
     mut is_open: Signal<bool>,
     #[props(default = FileVisibility::Private)] min_visibility: FileVisibility,
     on_close: Callback<Value>,
-    parent_folder_id: ReadOnlySignal<Option<Uuid>>,
+    parent_folder_id: ReadSignal<Option<Uuid>>,
 ) -> Element {
     use_form_provider("create-folder".to_owned(), attempt_to_create_folder);
 

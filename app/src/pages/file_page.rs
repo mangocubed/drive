@@ -7,7 +7,7 @@ use crate::routes::Routes;
 use crate::server_fns::get_file;
 
 #[component]
-pub fn FilePage(id: ReadOnlySignal<Uuid>) -> Element {
+pub fn FilePage(id: ReadSignal<Uuid>) -> Element {
     let navigator = use_navigator();
     let file = use_resource_with_loader(
         "file".to_owned(),
@@ -55,7 +55,7 @@ pub fn FilePage(id: ReadOnlySignal<Uuid>) -> Element {
             div { class: "text-right",
                 FileMenu {
                     file: file.clone(),
-                    on_trashed: move |_| {
+                    on_update: move |_| {
                         navigator.push(Routes::home());
                     },
                 }

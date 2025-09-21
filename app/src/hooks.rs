@@ -13,12 +13,16 @@ use crate::utils::run_with_loader;
 #[derive(Clone, PartialEq)]
 pub struct FormProvider {
     pub callback: Callback<HashMap<String, FormValue>>,
-    pub status: ReadOnlySignal<FormStatus>,
+    pub status: Signal<FormStatus>,
 }
 
 impl FormProvider {
     pub fn is_pending(&self) -> bool {
         *self.status.read() == FormStatus::Pending
+    }
+
+    pub fn reset(&mut self) {
+        *self.status.write() = FormStatus::default();
     }
 }
 
@@ -79,10 +83,7 @@ pub fn use_form_provider<
         });
     });
 
-    use_context_provider(|| FormProvider {
-        callback,
-        status: status.into(),
-    })
+    use_context_provider(|| FormProvider { callback, status })
 }
 
 pub fn use_resource_with_loader<T, F>(id: String, future: impl FnMut() -> F + Copy + 'static) -> Resource<T>
