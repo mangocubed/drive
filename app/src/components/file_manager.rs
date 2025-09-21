@@ -104,18 +104,18 @@ pub fn FileManager(
 
         if let Some(Ok(folder_items)) = &*all_folder_items.read() {
             if !folder_items.is_empty() {
-                div { class: "grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-6",
+                div { class: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-6",
                     for folder_item in folder_items {
-                        div { class: "relative",
+                        div { class: "relative aspect-square",
                             if folder_item.is_file {
                                 Link {
                                     class: "btn flex-col gap-2 p-2 h-full w-full",
                                     to: Routes::file(folder_item.id),
                                     img {
-                                        class: "rounded-lg m-auto",
+                                        class: "rounded-lg m-auto min-h-0",
                                         src: folder_item.preview_url.clone(),
                                     }
-                                    div { class: "normal-case truncate w-full",
+                                    div { class: "normal-case truncate w-full shrink-0",
                                         {folder_item.name.clone()}
                                     }
                                 }
@@ -130,8 +130,9 @@ pub fn FileManager(
                                 Link {
                                     class: "btn flex-col gap-2 normal-case p-2 h-full w-full",
                                     to: Routes::folder(folder_item.id),
-                                    FolderOutline { class: "size-[90%]" }
-                                    div { class: "normal-case truncate w-full",
+                                    FolderOutline { class: "size-[90%] text-gray-400 hover:text-gray-200" }
+
+                                    div { class: "normal-case truncate w-full shrink-0",
                                         {folder_item.name.clone()}
                                     }
                                 }
