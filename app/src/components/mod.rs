@@ -92,7 +92,6 @@ pub fn FileMenu(#[props(into)] file: FilePresenter, #[props(into)] on_update: Ca
 
 #[component]
 pub fn FolderMenu(#[props(into)] folder: FolderPresenter, #[props(into)] on_update: Callback) -> Element {
-    let mut show_rename_modal = use_signal(|| false);
     let mut show_trash_confirmation = use_signal(|| false);
 
     rsx! {
@@ -102,18 +101,6 @@ pub fn FolderMenu(#[props(into)] folder: FolderPresenter, #[props(into)] on_upda
             ul {
                 class: "menu menu-sm dropdown-content bg-base-200 rounded-box shadow mt-3 p-2 w-max z-1",
                 tabindex: 0,
-
-                li {
-                    a {
-                        onclick: move |_| {
-                            *show_rename_modal.write() = true;
-                        },
-                        PencilOutline {}
-                        "Rename"
-                    }
-                }
-
-                div { class: "divider m-1" }
 
                 li {
                     a {
