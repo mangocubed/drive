@@ -182,6 +182,7 @@ pub fn TextField(
     label: String,
     #[props(default = 256)] max_length: u16,
     name: String,
+    #[props(into, optional)] value: Signal<String>,
 ) -> Element {
     let error = use_error_memo(id.clone());
 
@@ -194,7 +195,11 @@ pub fn TextField(
                 maxlength: max_length,
                 name,
                 onkeydown: on_keydown,
+                oninput: move |event| {
+                    *value.write() = event.value();
+                },
                 r#type: input_type,
+                value,
             }
         }
     }

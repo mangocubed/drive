@@ -40,9 +40,11 @@ use crate::routes::Routes;
 #[cfg(feature = "server")]
 use crate::presenters::AsyncInto;
 
+mod file_server_fns;
 mod login_server_fns;
 mod trash_server_fns;
 
+pub use file_server_fns::*;
 pub use login_server_fns::*;
 pub use trash_server_fns::*;
 

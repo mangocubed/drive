@@ -1,7 +1,8 @@
 use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
 
-use crate::icons::{ArrowDownTrayOutline, EllipsisVerticalOutline, TrashOutline};
+use crate::components::modals::RenameFileModal;
+use crate::icons::{ArrowDownTrayOutline, EllipsisVerticalOutline, PencilOutline, TrashOutline};
 use crate::presenters::{FilePresenter, FolderPresenter};
 use crate::server_fns::{attempt_to_move_file_to_trash, attempt_to_move_folder_to_trash, is_logged_in};
 use crate::utils::run_with_loader;
@@ -14,7 +15,8 @@ pub use file_manager::FileManager;
 pub use modals::{AboutModal, ConfirmationModal, Modal, SubscriptionModal};
 
 #[component]
-pub fn FileMenu(file: FilePresenter, #[props(into)] on_trashed: Callback<()>) -> Element {
+pub fn FileMenu(#[props(into)] file: FilePresenter, #[props(into)] on_update: Callback) -> Element {
+    let mut show_rename_modal = use_signal(|| false);
     let mut show_trash_confirmation = use_signal(|| false);
 
     rsx! {
@@ -36,6 +38,18 @@ pub fn FileMenu(file: FilePresenter, #[props(into)] on_trashed: Callback<()>) ->
                 li {
                     a {
                         onclick: move |_| {
+                            *show_rename_modal.write() = true;
+                        },
+                        PencilOutline {}
+                        "Rename"
+                    }
+                }
+
+                div { class: "divider m-1" }
+
+                li {
+                    a {
+                        onclick: move |_| {
                             *show_trash_confirmation.write() = true;
                         },
                         TrashOutline {}
@@ -45,12 +59,19 @@ pub fn FileMenu(file: FilePresenter, #[props(into)] on_trashed: Callback<()>) ->
             }
         }
 
+        RenameFileModal {
+            is_open: show_rename_modal,
+            file: file.clone(),
+            on_close: move |_| {
+                on_update.call(());
+            },
+        }
 
         ConfirmationModal {
             is_open: show_trash_confirmation,
             on_accept: {
                 let file_id = file.id;
-                move |()| {
+                move |_| {
                     async move {
                         let result = run_with_loader(
 
@@ -59,7 +80,7 @@ pub fn FileMenu(file: FilePresenter, #[props(into)] on_trashed: Callback<()>) ->
                             )
                             .await;
                         if result.is_ok() {
-                            on_trashed.call(());
+                            on_update.call(());
                         }
                     }
                 }
@@ -70,7 +91,8 @@ pub fn FileMenu(file: FilePresenter, #[props(into)] on_trashed: Callback<()>) ->
 }
 
 #[component]
-pub fn FolderMenu(folder: FolderPresenter, #[props(into)] on_trashed: Callback<()>) -> Element {
+pub fn FolderMenu(#[props(into)] folder: FolderPresenter, #[props(into)] on_update: Callback) -> Element {
+    let mut show_rename_modal = use_signal(|| false);
     let mut show_trash_confirmation = use_signal(|| false);
 
     rsx! {
@@ -80,6 +102,19 @@ pub fn FolderMenu(folder: FolderPresenter, #[props(into)] on_trashed: Callback<(
             ul {
                 class: "menu menu-sm dropdown-content bg-base-200 rounded-box shadow mt-3 p-2 w-max z-1",
                 tabindex: 0,
+
+                li {
+                    a {
+                        onclick: move |_| {
+                            *show_rename_modal.write() = true;
+                        },
+                        PencilOutline {}
+                        "Rename"
+                    }
+                }
+
+                div { class: "divider m-1" }
+
                 li {
                     a {
                         onclick: move |_| {
@@ -106,7 +141,7 @@ pub fn FolderMenu(folder: FolderPresenter, #[props(into)] on_trashed: Callback<(
                             )
                             .await;
                         if result.is_ok() {
-                            on_trashed.call(());
+                            on_update.call(());
                         }
                     }
                 }
