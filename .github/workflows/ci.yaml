@@ -13,5 +13,5 @@ jobs:
         uses: ./.github/workflows/analysis.yaml
 
     tests:
-        needs: [code_analysis]
+        needs: [analysis]
         uses: ./.github/workflows/tests.yaml
