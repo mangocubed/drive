@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::enums::FileVisibility;
 use crate::server::commands::{
-    folder_is_trashed, get_folder_by_id, get_plan_by_id, get_used_space_by_user, verify_password,
+    folder_is_trashed, get_folder_by_id, get_plan_by_id, get_used_space_by_user, get_user_by_id, verify_password,
 };
 use crate::server::config::USERS_CONFIG;
 
@@ -120,6 +120,10 @@ impl File<'_> {
 
     pub fn url(&self) -> String {
         format!("/storage/files/{}", self.id)
+    }
+
+    pub async fn user(&self) -> User<'_> {
+        get_user_by_id(self.user_id).await.expect("Could not get user")
     }
 
     pub fn variant_filename(&self, width: Option<u16>, height: Option<u16>, fill: Option<bool>) -> String {

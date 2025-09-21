@@ -85,12 +85,14 @@ async fn file_name_exists(user: &User<'_>, parent_folder_id: Option<Uuid>, name:
     sqlx::query!(
         "(
             SELECT id FROM files
-            WHERE user_id = $1 AND (($2::uuid IS NULL AND parent_folder_id IS NULL) OR parent_folder_id = $2)
-                AND LOWER(name) = $3 LIMIT 1
+            WHERE user_id = $1
+                AND (($2::uuid IS NULL AND parent_folder_id IS NULL) OR parent_folder_id = $2) AND LOWER(name) = $3
+            LIMIT 1
         ) UNION (
             SELECT id FROM folders
-            WHERE user_id = $1 AND (($2::uuid IS NULL AND parent_folder_id IS NULL) OR parent_folder_id = $2)
-                AND LOWER(name) = $3 LIMIT 1
+            WHERE user_id = $1
+                AND (($2::uuid IS NULL AND parent_folder_id IS NULL) OR parent_folder_id = $2) AND LOWER(name) = $3
+            LIMIT 1
         )",
         user.id,             // $1
         parent_folder_id,    // $2
