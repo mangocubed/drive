@@ -5,8 +5,10 @@ use crate::components::Brand;
 use crate::constants::{COPYRIGHT, PRIVACY_URL, SOURCE_CODE_URL, TERMS_URL};
 use crate::forms::{Form, FormSuccessModal, TextField};
 use crate::hooks::use_form_provider;
-use crate::presenters::FilePresenter;
-use crate::server_fns::{attempt_to_create_plan_checkout, attempt_to_rename_file, get_all_available_plans};
+use crate::presenters::{FilePresenter, FolderPresenter};
+use crate::server_fns::{
+    attempt_to_create_plan_checkout, attempt_to_rename_file, attempt_to_rename_folder, get_all_available_plans,
+};
 use crate::use_resource_with_loader;
 use crate::utils::run_with_loader;
 
@@ -112,6 +114,51 @@ pub fn RenameFileModal(
                 input {
                     name: "id",
                     value: file.id.to_string(),
+                    r#type: "hidden",
+                }
+
+
+                TextField {
+                    id: "name",
+                    label: "Name",
+                    name: "name",
+                    value: name_value,
+                }
+            }
+        }
+    }
+}
+
+#[component]
+pub fn RenameFolderModal(
+    is_open: Signal<bool>,
+    #[props(into)] folder: FolderPresenter,
+    on_close: Callback<Value>,
+) -> Element {
+    let mut form_provider = use_form_provider("rename-folder".to_owned(), attempt_to_rename_folder);
+
+    let mut name_value = use_signal(|| folder.name.clone());
+
+    use_effect(move || {
+        if *is_open.read() {
+            form_provider.reset();
+            *name_value.write() = folder.name.clone();
+        }
+    });
+
+    rsx! {
+        FormSuccessModal { on_close }
+
+        Modal { is_open,
+            h2 { class: "h2", "Rename folder" }
+
+            Form {
+                on_success: move |_| {
+                    *is_open.write() = false;
+                },
+                input {
+                    name: "id",
+                    value: folder.id.to_string(),
                     r#type: "hidden",
                 }
 

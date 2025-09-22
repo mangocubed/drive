@@ -23,6 +23,7 @@ use super::models::{File, Folder, User};
 
 mod access_token_commands;
 mod file_commands;
+mod folder_commands;
 mod folder_item_commands;
 mod plan_commands;
 mod trash_commands;
@@ -30,6 +31,7 @@ mod user_commands;
 
 pub use access_token_commands::*;
 pub use file_commands::*;
+pub use folder_commands::*;
 pub use folder_item_commands::*;
 pub use plan_commands::*;
 pub use trash_commands::*;

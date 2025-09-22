@@ -203,6 +203,10 @@ impl Folder<'_> {
             None
         }
     }
+
+    pub async fn user(&self) -> User<'_> {
+        get_user_by_id(self.user_id).await.expect("Could not get user")
+    }
 }
 
 impl<'a> From<&FolderItem<'a>> for Folder<'a> {
