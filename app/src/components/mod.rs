@@ -1,7 +1,7 @@
 use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
 
-use crate::components::modals::RenameFileModal;
+use crate::components::modals::{RenameFileModal, RenameFolderModal};
 use crate::icons::{ArrowDownTrayOutline, EllipsisVerticalOutline, PencilOutline, TrashOutline};
 use crate::presenters::{FilePresenter, FolderPresenter};
 use crate::server_fns::{attempt_to_move_file_to_trash, attempt_to_move_folder_to_trash, is_logged_in};
@@ -92,6 +92,7 @@ pub fn FileMenu(#[props(into)] file: FilePresenter, #[props(into)] on_update: Ca
 
 #[component]
 pub fn FolderMenu(#[props(into)] folder: FolderPresenter, #[props(into)] on_update: Callback) -> Element {
+    let mut show_rename_modal = use_signal(|| false);
     let mut show_trash_confirmation = use_signal(|| false);
 
     rsx! {
@@ -105,6 +106,18 @@ pub fn FolderMenu(#[props(into)] folder: FolderPresenter, #[props(into)] on_upda
                 li {
                     a {
                         onclick: move |_| {
+                            *show_rename_modal.write() = true;
+                        },
+                        PencilOutline {}
+                        "Rename"
+                    }
+                }
+
+                div { class: "divider m-1" }
+
+                li {
+                    a {
+                        onclick: move |_| {
                             *show_trash_confirmation.write() = true;
                         },
                         TrashOutline {}
@@ -114,6 +127,13 @@ pub fn FolderMenu(#[props(into)] folder: FolderPresenter, #[props(into)] on_upda
             }
         }
 
+        RenameFolderModal {
+            is_open: show_rename_modal,
+            folder: folder.clone(),
+            on_close: move |_| {
+                on_update.call(());
+            },
+        }
 
         ConfirmationModal {
             is_open: show_trash_confirmation,

@@ -52,7 +52,7 @@ pub fn FilePage(id: ReadSignal<Uuid>) -> Element {
                 }
             }
 
-            div { class: "text-right",
+            div { class: "flex justify-end",
                 FileMenu {
                     file: file.clone(),
                     on_update: move |_| {

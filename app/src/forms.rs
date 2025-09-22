@@ -91,26 +91,31 @@ pub fn FormField(children: Element, error: Memo<Option<String>>, label: String) 
 #[component]
 pub fn FormSuccessModal(#[props(optional)] on_close: Callback<Value>) -> Element {
     let form_context = use_form_context();
-    let mut is_open = use_signal(|| true);
+    let mut is_open = use_signal(|| false);
+    let mut success = use_signal(|| (String::new(), Value::Null));
+
+    use_effect(move || {
+        if let FormStatus::Success(message, data) = &*form_context.status.read() {
+            *is_open.write() = true;
+            *success.write() = (message.clone(), data.clone());
+        }
+    });
 
     rsx! {
-        if let FormStatus::Success(message, data) = &*form_context.status.read() {
-            Modal { is_open, is_closable: false,
-                {message.clone()}
+        Modal { is_open, is_closable: false,
+            {success().0}
 
-                div { class: "modal-action",
-                    button {
-                        class: "btn btn-primary",
-                        onclick: {
-                            let data = data.clone();
-                            move |event| {
-                                event.prevent_default();
-                                on_close.call(data.clone());
-                                *is_open.write() = false;
-                            }
-                        },
-                        "Ok"
-                    }
+            div { class: "modal-action",
+                button {
+                    class: "btn btn-primary",
+                    onclick: {
+                        move |event| {
+                            event.prevent_default();
+                            on_close.call(success().1);
+                            *is_open.write() = false;
+                        }
+                    },
+                    "Ok"
                 }
             }
         }
