@@ -261,6 +261,12 @@ impl FolderItem<'_> {
             None
         }
     }
+
+    pub async fn parent_folders(&self) -> Vec<Folder<'_>> {
+        get_parent_folders_by_id(self.parent_folder_id)
+            .await
+            .expect("Could not get parent folders")
+    }
 }
 
 #[derive(Serialize)]

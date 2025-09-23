@@ -18,7 +18,7 @@ use crate::server_fns::{
     get_all_folder_items,
 };
 use crate::signals::MOVE_FOLDER_ITEM;
-use crate::utils::run_with_loader;
+use crate::utils::{can_be_moved, run_with_loader};
 
 use super::Modal;
 
@@ -178,6 +178,7 @@ pub fn FileManager(
 
                     button {
                         class: "btn btn-sm btn-primary",
+                        disabled: !can_be_moved(move_folder_item, folder().as_ref()),
                         onclick: {
                             let move_folder_item_id = move_folder_item.id;
                             let move_folder_item_is_file = move_folder_item.is_file;

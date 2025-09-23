@@ -1,9 +1,20 @@
 use dioxus::signals::ReadableExt;
 
+use crate::presenters::{FolderItemPresenter, FolderPresenter};
 use crate::signals::LOADER_UNITS;
 
 #[cfg(not(feature = "server"))]
 const KEY_ACCESS_TOKEN: &str = "_access_token";
+
+pub fn can_be_moved(folder_item: &FolderItemPresenter, target_folder: Option<&FolderPresenter>) -> bool {
+    if let Some(target) = target_folder {
+        folder_item.parent_folder_id != Some(target.id)
+            && (folder_item.is_file
+                || (folder_item.id != target.id && !target.parent_folders.iter().any(|pf| pf.id == folder_item.id)))
+    } else {
+        folder_item.parent_folder_id.is_some()
+    }
+}
 
 pub async fn run_with_loader<T, F>(id: String, mut future: impl FnMut() -> F + 'static) -> T
 where
@@ -23,6 +34,7 @@ pub fn loader_is_active() -> bool {
     LOADER_UNITS.read().values().any(|&loading| loading)
 }
 
+#[allow(dead_code)]
 pub trait DataStorageTrait {
     fn new() -> Self;
 

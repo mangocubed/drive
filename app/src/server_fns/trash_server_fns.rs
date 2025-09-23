@@ -3,6 +3,9 @@ use uuid::Uuid;
 
 use crate::presenters::FolderItemPresenter;
 
+#[cfg(feature = "server")]
+use crate::presenters::AsyncInto;
+
 use super::{ServFnClient, ServFnResult};
 
 #[cfg(feature = "server")]
@@ -94,5 +97,5 @@ pub async fn get_all_trash_items() -> ServFnResult<Vec<FolderItemPresenter>> {
         .await
         .map_err(|_| ServFnError::Other("Could not get trash items".to_owned()))?;
 
-    Ok(trash_items.iter().map(|trash_item| trash_item.into()).collect())
+    Ok(futures::future::join_all(trash_items.iter().map(|trash_item| trash_item.async_into())).await)
 }
