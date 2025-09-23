@@ -225,6 +225,7 @@ pub fn SubscriptionModal(is_open: Signal<bool>, on_success: Callback<()>) -> Ele
                                                         move || attempt_to_create_plan_checkout(plan_id, is_yearly()),
                                                     )
                                                     .await;
+                                                #[allow(unused_variables)]
                                                 if let Ok(checkout_url) = result {
                                                     #[cfg(feature = "web")] navigator.push(checkout_url.to_string());
                                                     #[cfg(feature = "desktop")]

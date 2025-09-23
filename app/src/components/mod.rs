@@ -9,7 +9,7 @@ use crate::icons::{
 use crate::presenters::FolderItemPresenter;
 use crate::server_fns::*;
 use crate::signals::MOVE_FOLDER_ITEM;
-use crate::utils::run_with_loader;
+use crate::utils::{can_be_moved, run_with_loader};
 use crate::{ICON_SVG, LOGO_SVG, use_resource_with_loader};
 
 mod file_manager;
@@ -63,7 +63,9 @@ pub fn FolderItemMenu(#[props(into)] folder_item: FolderItemPresenter, #[props(i
                     }
                 }
 
-                if !folder_item.is_file && let Some(move_folder_item) = &*MOVE_FOLDER_ITEM.read() {
+                if !folder_item.is_file && let Some(move_folder_item) = &*MOVE_FOLDER_ITEM.read()
+                    && can_be_moved(move_folder_item, Some(&(&folder_item).into()))
+                {
                     li {
                         a {
                             onclick: {

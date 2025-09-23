@@ -14,6 +14,7 @@ pub trait AsyncInto<T> {
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct FilePresenter {
     pub id: Uuid,
+    pub parent_folder_id: Option<Uuid>,
     pub name: String,
     pub visibility: FileVisibility,
     pub parent_folders: Vec<FolderPresenter>,
@@ -26,6 +27,7 @@ impl AsyncInto<FilePresenter> for File<'_> {
     async fn async_into(&self) -> FilePresenter {
         FilePresenter {
             id: self.id,
+            parent_folder_id: self.parent_folder_id,
             name: self.name.to_string(),
             visibility: self.visibility,
             parent_folders: futures::future::join_all(
@@ -42,6 +44,7 @@ impl From<&FolderItemPresenter> for FilePresenter {
     fn from(folder_item: &FolderItemPresenter) -> Self {
         FilePresenter {
             id: folder_item.id,
+            parent_folder_id: folder_item.parent_folder_id,
             name: folder_item.name.clone(),
             visibility: folder_item.visibility,
             parent_folders: vec![],
@@ -54,31 +57,31 @@ impl From<&FolderItemPresenter> for FilePresenter {
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct FolderItemPresenter {
     pub id: Uuid,
+    pub parent_folder_id: Option<Uuid>,
     pub is_file: bool,
     pub name: String,
     pub visibility: FileVisibility,
     pub url: Option<String>,
     pub preview_url: Option<String>,
+    pub parent_folders: Vec<FolderPresenter>,
 }
 
 #[cfg(feature = "server")]
-impl From<&FolderItem<'_>> for FolderItemPresenter {
-    fn from(folder_item: &FolderItem<'_>) -> Self {
-        Self {
-            id: folder_item.id,
-            is_file: folder_item.is_file,
-            name: folder_item.name.to_string(),
-            visibility: folder_item.visibility,
-            url: folder_item.url(),
-            preview_url: folder_item.preview_url(),
+impl AsyncInto<FolderItemPresenter> for FolderItem<'_> {
+    async fn async_into(&self) -> FolderItemPresenter {
+        FolderItemPresenter {
+            id: self.id,
+            parent_folder_id: self.parent_folder_id,
+            is_file: self.is_file,
+            name: self.name.to_string(),
+            visibility: self.visibility,
+            url: self.url(),
+            preview_url: self.preview_url(),
+            parent_folders: futures::future::join_all(
+                self.parent_folders().await.iter().map(|folder| folder.async_into()),
+            )
+            .await,
         }
-    }
-}
-
-#[cfg(feature = "server")]
-impl From<FolderItem<'_>> for FolderItemPresenter {
-    fn from(folder_item: FolderItem<'_>) -> Self {
-        Self::from(&folder_item)
     }
 }
 
@@ -86,11 +89,13 @@ impl From<&FilePresenter> for FolderItemPresenter {
     fn from(file: &FilePresenter) -> Self {
         FolderItemPresenter {
             id: file.id,
+            parent_folder_id: file.parent_folder_id,
             is_file: true,
             name: file.name.to_string(),
             visibility: file.visibility,
             url: Some(file.url.clone()),
             preview_url: Some(file.preview_url.clone()),
+            parent_folders: file.parent_folders.clone(),
         }
     }
 }
@@ -103,13 +108,15 @@ impl From<FilePresenter> for FolderItemPresenter {
 
 impl From<FolderPresenter> for FolderItemPresenter {
     fn from(folder: FolderPresenter) -> Self {
-        FolderItemPresenter {
+        Self {
             id: folder.id,
+            parent_folder_id: folder.parent_folder_id,
             is_file: false,
             name: folder.name,
             visibility: folder.visibility,
             url: None,
             preview_url: None,
+            parent_folders: folder.parent_folders,
         }
     }
 }
@@ -117,6 +124,7 @@ impl From<FolderPresenter> for FolderItemPresenter {
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct FolderPresenter {
     pub id: Uuid,
+    pub parent_folder_id: Option<Uuid>,
     pub name: String,
     pub visibility: FileVisibility,
     pub parent_folders: Vec<FolderPresenter>,
@@ -127,6 +135,7 @@ impl AsyncInto<FolderPresenter> for Folder<'_> {
     async fn async_into(&self) -> FolderPresenter {
         FolderPresenter {
             id: self.id,
+            parent_folder_id: self.parent_folder_id,
             name: self.name.to_string(),
             visibility: self.visibility,
             parent_folders: futures::future::join_all(
@@ -139,12 +148,19 @@ impl AsyncInto<FolderPresenter> for Folder<'_> {
 
 impl From<&FolderItemPresenter> for FolderPresenter {
     fn from(folder_item: &FolderItemPresenter) -> Self {
-        FolderPresenter {
+        Self {
             id: folder_item.id,
+            parent_folder_id: folder_item.parent_folder_id,
             name: folder_item.name.to_string(),
             visibility: folder_item.visibility,
             parent_folders: vec![],
         }
+    }
+}
+
+impl From<FolderItemPresenter> for FolderPresenter {
+    fn from(folder_item: FolderItemPresenter) -> Self {
+        Self::from(&folder_item)
     }
 }
 
