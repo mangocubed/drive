@@ -5,7 +5,7 @@ use crate::components::PageTitle;
 use crate::forms::{Form, FormSuccessModal, PasswordField, TextField};
 use crate::hooks::{use_current_user, use_form_provider};
 use crate::routes::Routes;
-use crate::server_fns::attempt_to_login;
+use crate::server_fns::{attempt_to_login, can_register_user};
 use crate::utils::{DataStorageTrait, data_storage};
 
 #[component]
@@ -14,6 +14,7 @@ pub fn LoginPage() -> Element {
 
     let navigator = use_navigator();
     let mut current_user = use_current_user();
+    let can_register_user = use_resource(can_register_user);
 
     rsx! {
         PageTitle { "Login" }
@@ -47,9 +48,13 @@ pub fn LoginPage() -> Element {
             }
         }
 
-        div { class: "max-w-[640px] mx-auto mt-5 flex flex-col gap-4",
-            Link { class: "btn btn-block btn-outline", to: Routes::register(),
-                "I don't have an account"
+        if can_register_user() == Some(Ok(true)) {
+            div { class: "max-w-[640px] mx-auto mt-5 flex flex-col gap-4",
+                Link {
+                    class: "btn btn-block btn-outline",
+                    to: Routes::register(),
+                    "I don't have an account"
+                }
             }
         }
     }

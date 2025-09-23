@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::path::PathBuf;
 
 use bytesize::ByteSize;
 use chrono::{DateTime, NaiveDate, Utc};
@@ -38,16 +39,17 @@ pub struct File<'a> {
 }
 
 impl File<'_> {
-    pub fn cache_directory(&self) -> String {
-        format!("{}/cache/files", STORAGE_CONFIG.path)
+    pub fn cache_directory(&self) -> PathBuf {
+        STORAGE_CONFIG.path().join("cache/files")
     }
 
-    pub fn default_path(&self) -> String {
-        format!("{}/{}.{}", self.directory(), self.id, self.format().extension())
+    pub fn default_path(&self) -> PathBuf {
+        self.directory()
+            .join(format!("{}.{}", self.id, self.format().extension()))
     }
 
-    pub fn directory(&self) -> String {
-        format!("{}/files", STORAGE_CONFIG.path)
+    pub fn directory(&self) -> PathBuf {
+        STORAGE_CONFIG.path().join("files")
     }
 
     pub fn format(&self) -> &FileFormat {
@@ -149,16 +151,15 @@ impl File<'_> {
         self.name.to_string()
     }
 
-    pub fn variant_path(&self, width: u16, height: u16, fill: bool) -> String {
-        format!(
-            "{}/{}_{}x{}{}.{}",
-            self.cache_directory(),
+    pub fn variant_path(&self, width: u16, height: u16, fill: bool) -> PathBuf {
+        self.cache_directory().join(format!(
+            "{}_{}x{}{}.{}",
             self.id,
             width,
             height,
             if fill { "_fill" } else { "" },
             self.format().extension()
-        )
+        ))
     }
 }
 

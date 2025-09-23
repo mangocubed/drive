@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use bytesize::ByteSize;
@@ -59,8 +60,8 @@ impl Default for PolarConfig {
 #[derive(Deserialize, Serialize)]
 pub(crate) struct StorageConfig {
     pub image_filter_type: FilterType,
-    pub max_size_gib_per_file: u8,
-    pub path: String,
+    max_size_gib_per_file: u8,
+    path: String,
 }
 
 impl Default for StorageConfig {
@@ -79,6 +80,16 @@ impl Default for StorageConfig {
 impl StorageConfig {
     pub fn max_size_per_file(&self) -> ByteSize {
         ByteSize::gib(self.max_size_gib_per_file as u64)
+    }
+
+    pub fn path(&self) -> PathBuf {
+        let storage_path = Path::new(&self.path);
+
+        if !storage_path.exists() {
+            std::fs::create_dir_all(storage_path).expect("Could not create storage directory");
+        }
+
+        storage_path.into()
     }
 }
 
