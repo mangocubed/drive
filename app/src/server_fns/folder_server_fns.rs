@@ -23,7 +23,7 @@ pub async fn attempt_to_move_folder(folder_id: Uuid, target_folder_id: Option<Uu
         .map_err(|_| ServFnError::Other("Could not get folder".to_owned()))?;
     let target_folder = if let Some(target_folder_id) = target_folder_id {
         Some(
-            &drive_core::server::commands::get_folder_by_id(target_folder_id, Some(&user))
+            drive_core::server::commands::get_folder_by_id(target_folder_id, Some(&user))
                 .await
                 .map_err(|_| ServFnError::Other("Could not get target folder".to_owned()))?,
         )
@@ -31,7 +31,7 @@ pub async fn attempt_to_move_folder(folder_id: Uuid, target_folder_id: Option<Uu
         None
     };
 
-    drive_core::server::commands::move_folder(&folder, target_folder)
+    drive_core::server::commands::move_folder(&folder, target_folder.as_ref())
         .await
         .map_err(|_| ServFnError::Other("Could not move file".to_owned()))?;
 
