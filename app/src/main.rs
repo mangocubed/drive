@@ -17,6 +17,7 @@ mod pages;
 mod presenters;
 mod routes;
 mod server_fns;
+mod signals;
 mod utils;
 
 use hooks::use_resource_with_loader;

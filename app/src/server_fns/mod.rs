@@ -279,7 +279,7 @@ pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResul
         .await
         .map_err(|_| ServFnError::Other("Could not get folder items".to_owned()))?;
 
-    Ok(futures::future::join_all(folder_items.iter().map(|folder_item| folder_item.async_into())).await)
+    Ok(folder_items.iter().map(|folder_item| folder_item.into()).collect())
 }
 
 #[server(client = ServFnClient)]

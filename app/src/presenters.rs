@@ -4,8 +4,6 @@ use uuid::Uuid;
 use drive_core::enums::FileVisibility;
 
 #[cfg(feature = "server")]
-use drive_core::server::commands::get_folder_by_id;
-#[cfg(feature = "server")]
 use drive_core::server::models::{File, Folder, FolderItem, Plan, User};
 
 #[cfg(feature = "server")]
@@ -18,7 +16,7 @@ pub struct FilePresenter {
     pub id: Uuid,
     pub name: String,
     pub visibility: FileVisibility,
-    pub parent_folders: Vec<(Uuid, String)>,
+    pub parent_folders: Vec<FolderPresenter>,
     pub url: String,
     pub preview_url: String,
 }
@@ -26,24 +24,14 @@ pub struct FilePresenter {
 #[cfg(feature = "server")]
 impl AsyncInto<FilePresenter> for File<'_> {
     async fn async_into(&self) -> FilePresenter {
-        let mut parent_folders = Vec::new();
-        let mut parent_folder_id = self.parent_folder_id;
-
-        while let Some(id) = parent_folder_id {
-            let parent_folder = get_folder_by_id(id, None).await.unwrap();
-
-            parent_folders.push((parent_folder.id, parent_folder.name.to_string()));
-
-            parent_folder_id = parent_folder.parent_folder_id;
-        }
-
-        parent_folders.reverse();
-
         FilePresenter {
             id: self.id,
             name: self.name.to_string(),
             visibility: self.visibility,
-            parent_folders,
+            parent_folders: futures::future::join_all(
+                self.parent_folders().await.iter().map(|folder| folder.async_into()),
+            )
+            .await,
             url: self.url(),
             preview_url: self.preview_url(),
         }
@@ -74,28 +62,54 @@ pub struct FolderItemPresenter {
 }
 
 #[cfg(feature = "server")]
-impl AsyncInto<FolderItemPresenter> for FolderItem<'_> {
-    async fn async_into(&self) -> FolderItemPresenter {
-        let mut parent_folders = Vec::new();
-        let mut parent_folder_id = self.parent_folder_id;
-
-        while let Some(id) = parent_folder_id {
-            let parent_folder = get_folder_by_id(id, None).await.unwrap();
-
-            parent_folders.push((parent_folder.id, parent_folder.name.to_string()));
-
-            parent_folder_id = parent_folder.parent_folder_id;
+impl From<&FolderItem<'_>> for FolderItemPresenter {
+    fn from(folder_item: &FolderItem<'_>) -> Self {
+        Self {
+            id: folder_item.id,
+            is_file: folder_item.is_file,
+            name: folder_item.name.to_string(),
+            visibility: folder_item.visibility,
+            url: folder_item.url(),
+            preview_url: folder_item.preview_url(),
         }
+    }
+}
 
-        parent_folders.reverse();
+#[cfg(feature = "server")]
+impl From<FolderItem<'_>> for FolderItemPresenter {
+    fn from(folder_item: FolderItem<'_>) -> Self {
+        Self::from(&folder_item)
+    }
+}
 
+impl From<&FilePresenter> for FolderItemPresenter {
+    fn from(file: &FilePresenter) -> Self {
         FolderItemPresenter {
-            id: self.id,
-            is_file: self.is_file,
-            name: self.name.to_string(),
-            visibility: self.visibility,
-            url: self.url(),
-            preview_url: self.preview_url(),
+            id: file.id,
+            is_file: true,
+            name: file.name.to_string(),
+            visibility: file.visibility,
+            url: Some(file.url.clone()),
+            preview_url: Some(file.preview_url.clone()),
+        }
+    }
+}
+
+impl From<FilePresenter> for FolderItemPresenter {
+    fn from(file: FilePresenter) -> Self {
+        Self::from(&file)
+    }
+}
+
+impl From<FolderPresenter> for FolderItemPresenter {
+    fn from(folder: FolderPresenter) -> Self {
+        FolderItemPresenter {
+            id: folder.id,
+            is_file: false,
+            name: folder.name,
+            visibility: folder.visibility,
+            url: None,
+            preview_url: None,
         }
     }
 }
@@ -105,30 +119,20 @@ pub struct FolderPresenter {
     pub id: Uuid,
     pub name: String,
     pub visibility: FileVisibility,
-    pub parent_folders: Vec<(Uuid, String)>,
+    pub parent_folders: Vec<FolderPresenter>,
 }
 
 #[cfg(feature = "server")]
 impl AsyncInto<FolderPresenter> for Folder<'_> {
     async fn async_into(&self) -> FolderPresenter {
-        let mut parent_folders = Vec::new();
-        let mut parent_folder_id = self.parent_folder_id;
-
-        while let Some(id) = parent_folder_id {
-            let parent_folder = get_folder_by_id(id, None).await.unwrap();
-
-            parent_folders.push((parent_folder.id, parent_folder.name.to_string()));
-
-            parent_folder_id = parent_folder.parent_folder_id;
-        }
-
-        parent_folders.reverse();
-
         FolderPresenter {
             id: self.id,
             name: self.name.to_string(),
             visibility: self.visibility,
-            parent_folders,
+            parent_folders: futures::future::join_all(
+                self.parent_folders().await.iter().map(|folder| folder.async_into()),
+            )
+            .await,
         }
     }
 }

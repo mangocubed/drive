@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use uuid::Uuid;
 
 use drive_core::inputs::RenameInput;
 
@@ -11,6 +12,31 @@ use super::{ServFnClient, ServFnResult};
 
 #[cfg(feature = "server")]
 use super::{ServFnError, extract_user, require_login};
+
+#[server(client = ServFnClient)]
+pub async fn attempt_to_move_file(file_id: Uuid, target_folder_id: Option<Uuid>) -> ServFnResult<()> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+    let file = drive_core::server::commands::get_file_by_id(file_id, Some(&user))
+        .await
+        .map_err(|_| ServFnError::Other("Could not get file".to_owned()))?;
+    let target_folder = if let Some(target_folder_id) = target_folder_id {
+        Some(
+            &drive_core::server::commands::get_folder_by_id(target_folder_id, Some(&user))
+                .await
+                .map_err(|_| ServFnError::Other("Could not get target folder".to_owned()))?,
+        )
+    } else {
+        None
+    };
+
+    drive_core::server::commands::move_file(&file, target_folder)
+        .await
+        .map_err(|_| ServFnError::Other("Could not move file".to_owned()))?;
+
+    Ok(())
+}
 
 #[server(client = ServFnClient)]
 pub async fn attempt_to_rename_file(input: RenameInput) -> ServFnResult<FormStatus> {
