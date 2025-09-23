@@ -141,9 +141,11 @@ pub fn UserLayout() -> Element {
                     }
                 }
 
-                AboutModal { is_open: show_about }
+                main { class: "main grow max-w-[calc(100%-48px)] md:max-w-[calc(100%-208px)]",
+                    Outlet::<Routes> {}
+                }
 
-                main { class: "main grow", Outlet::<Routes> {} }
+                AboutModal { is_open: show_about }
             }
         }
     }

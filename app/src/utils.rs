@@ -1,11 +1,9 @@
-use std::collections::HashMap;
+use dioxus::signals::ReadableExt;
 
-use dioxus::signals::{GlobalSignal, ReadableExt};
+use crate::signals::LOADER_UNITS;
 
 #[cfg(not(feature = "server"))]
 const KEY_ACCESS_TOKEN: &str = "_access_token";
-
-pub static LOADER_UNITS: GlobalSignal<HashMap<String, bool>> = GlobalSignal::new(HashMap::new);
 
 pub async fn run_with_loader<T, F>(id: String, mut future: impl FnMut() -> F + 'static) -> T
 where

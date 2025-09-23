@@ -20,7 +20,7 @@ pub fn FolderPage(id: ReadSignal<Uuid>) -> Element {
                     .parent_folders
                     .clone()
                     .iter()
-                    .map(|(_, name)| name.clone())
+                    .map(|parent_folder| parent_folder.name.clone())
                     .collect::<Vec<_>>()
                     .join(" > ");
                 title += " > ";
@@ -36,14 +36,14 @@ pub fn FolderPage(id: ReadSignal<Uuid>) -> Element {
         if let Some(Some(folder)) = &*folder.read() {
             PageTitle { {page_title()} }
 
-            h1 { class: "h2 breadcrumbs",
+            h1 { class: "h3 breadcrumbs",
                 ul {
                     li {
                         Link { to: Routes::home(), "Home" }
                     }
-                    for (id , name) in folder.parent_folders.clone() {
+                    for parent_folder in folder.parent_folders.clone() {
                         li {
-                            Link { to: Routes::folder(id), {name.clone()} }
+                            Link { to: Routes::folder(parent_folder.id), {parent_folder.name.clone()} }
                         }
                     }
                     li { {folder.name.clone()} }

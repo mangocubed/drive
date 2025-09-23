@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::components::{FileMenu, PageTitle};
+use crate::components::{FolderItemMenu, PageTitle};
 use crate::hooks::use_resource_with_loader;
 use crate::routes::Routes;
 use crate::server_fns::get_file;
@@ -22,7 +22,7 @@ pub fn FilePage(id: ReadSignal<Uuid>) -> Element {
                     .parent_folders
                     .clone()
                     .iter()
-                    .map(|(_, name)| name.clone())
+                    .map(|parent_folder| parent_folder.name.clone())
                     .collect::<Vec<_>>()
                     .join(" > ");
                 title += " > ";
@@ -38,14 +38,14 @@ pub fn FilePage(id: ReadSignal<Uuid>) -> Element {
         if let Some(Some(file)) = &*file.read() {
             PageTitle { {page_title()} }
 
-            h1 { class: "h2 breadcrumbs",
+            h1 { class: "h3 breadcrumbs",
                 ul {
                     li {
                         Link { to: Routes::home(), "Home" }
                     }
-                    for (id , name) in file.parent_folders.clone() {
+                    for parent_folder in file.parent_folders.clone() {
                         li {
-                            Link { to: Routes::folder(id), {name.clone()} }
+                            Link { to: Routes::folder(parent_folder.id), {parent_folder.name.clone()} }
                         }
                     }
                     li { {file.name.clone()} }
@@ -53,8 +53,8 @@ pub fn FilePage(id: ReadSignal<Uuid>) -> Element {
             }
 
             div { class: "flex justify-end",
-                FileMenu {
-                    file: file.clone(),
+                FolderItemMenu {
+                    folder_item: file,
                     on_update: move |_| {
                         navigator.push(Routes::home());
                     },

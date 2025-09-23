@@ -1,11 +1,10 @@
 use dioxus::prelude::*;
-use serde_json::Value;
 
 use crate::components::Brand;
 use crate::constants::{COPYRIGHT, PRIVACY_URL, SOURCE_CODE_URL, TERMS_URL};
-use crate::forms::{Form, FormSuccessModal, TextField};
+use crate::forms::{Form, TextField};
 use crate::hooks::use_form_provider;
-use crate::presenters::{FilePresenter, FolderPresenter};
+use crate::presenters::FolderItemPresenter;
 use crate::server_fns::{
     attempt_to_create_plan_checkout, attempt_to_rename_file, attempt_to_rename_folder, get_all_available_plans,
 };
@@ -85,80 +84,47 @@ pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Ca
 }
 
 #[component]
-pub fn RenameFileModal(
+pub fn RenameModal(
     is_open: Signal<bool>,
-    #[props(into)] file: FilePresenter,
-    on_close: Callback<Value>,
+    #[props(into)] folder_item: FolderItemPresenter,
+    on_success: Callback,
 ) -> Element {
-    let mut form_provider = use_form_provider("rename-file".to_owned(), attempt_to_rename_file);
+    let mut form_provider = use_form_provider("rename".to_owned(), move |input| async move {
+        if folder_item.is_file {
+            attempt_to_rename_file(input).await
+        } else {
+            attempt_to_rename_folder(input).await
+        }
+    });
 
-    let mut name_value = use_signal(|| file.name.clone());
+    let mut name_value = use_signal(|| folder_item.name.clone());
 
     use_effect(move || {
         if *is_open.read() {
             form_provider.reset();
-            *name_value.write() = file.name.clone();
+            *name_value.write() = folder_item.name.clone();
         }
     });
 
     rsx! {
-        FormSuccessModal { on_close }
-
         Modal { is_open,
-            h2 { class: "h2", "Rename file" }
-
-            Form {
-                on_success: move |_| {
-                    *is_open.write() = false;
-                },
-                input {
-                    name: "id",
-                    value: file.id.to_string(),
-                    r#type: "hidden",
-                }
-
-
-                TextField {
-                    id: "name",
-                    label: "Name",
-                    name: "name",
-                    value: name_value,
+            h2 { class: "h2",
+                "Rename "
+                if folder_item.is_file {
+                    "file"
+                } else {
+                    "folder"
                 }
             }
-        }
-    }
-}
-
-#[component]
-pub fn RenameFolderModal(
-    is_open: Signal<bool>,
-    #[props(into)] folder: FolderPresenter,
-    on_close: Callback<Value>,
-) -> Element {
-    let mut form_provider = use_form_provider("rename-folder".to_owned(), attempt_to_rename_folder);
-
-    let mut name_value = use_signal(|| folder.name.clone());
-
-    use_effect(move || {
-        if *is_open.read() {
-            form_provider.reset();
-            *name_value.write() = folder.name.clone();
-        }
-    });
-
-    rsx! {
-        FormSuccessModal { on_close }
-
-        Modal { is_open,
-            h2 { class: "h2", "Rename folder" }
 
             Form {
                 on_success: move |_| {
+                    on_success.call(());
                     *is_open.write() = false;
                 },
                 input {
                     name: "id",
-                    value: folder.id.to_string(),
+                    value: folder_item.id.to_string(),
                     r#type: "hidden",
                 }
 

@@ -1,10 +1,14 @@
 use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
 
-use crate::components::modals::{RenameFileModal, RenameFolderModal};
-use crate::icons::{ArrowDownTrayOutline, EllipsisVerticalOutline, PencilOutline, TrashOutline};
-use crate::presenters::{FilePresenter, FolderPresenter};
-use crate::server_fns::{attempt_to_move_file_to_trash, attempt_to_move_folder_to_trash, is_logged_in};
+use crate::components::modals::RenameModal;
+use crate::icons::{
+    ArrowDownTrayOutline, ClipboardDocumentListOutline, EllipsisVerticalOutline, MoveOutline, PencilOutline,
+    TrashOutline,
+};
+use crate::presenters::FolderItemPresenter;
+use crate::server_fns::*;
+use crate::signals::MOVE_FOLDER_ITEM;
 use crate::utils::run_with_loader;
 use crate::{ICON_SVG, LOGO_SVG, use_resource_with_loader};
 
@@ -15,7 +19,7 @@ pub use file_manager::FileManager;
 pub use modals::{AboutModal, ConfirmationModal, Modal, SubscriptionModal};
 
 #[component]
-pub fn FileMenu(#[props(into)] file: FilePresenter, #[props(into)] on_update: Callback) -> Element {
+pub fn FolderItemMenu(#[props(into)] folder_item: FolderItemPresenter, #[props(into)] on_update: Callback) -> Element {
     let mut show_rename_modal = use_signal(|| false);
     let mut show_trash_confirmation = use_signal(|| false);
 
@@ -26,14 +30,18 @@ pub fn FileMenu(#[props(into)] file: FilePresenter, #[props(into)] on_update: Ca
             ul {
                 class: "menu menu-sm dropdown-content bg-base-200 rounded-box shadow mt-3 p-2 w-max z-1",
                 tabindex: 0,
-                li {
-                    a { download: file.name.clone(), href: file.url.clone(),
-                        ArrowDownTrayOutline {}
-                        "Download"
+                if folder_item.is_file {
+                    li {
+                        a {
+                            download: folder_item.name.clone(),
+                            href: folder_item.url.clone(),
+                            ArrowDownTrayOutline {}
+                            "Download"
+                        }
                     }
-                }
 
-                div { class: "divider m-1" }
+                    div { class: "divider m-1" }
+                }
 
                 li {
                     a {
@@ -42,6 +50,57 @@ pub fn FileMenu(#[props(into)] file: FilePresenter, #[props(into)] on_update: Ca
                         },
                         PencilOutline {}
                         "Rename"
+                    }
+                }
+
+                li {
+                    a {
+                        onclick: move |_| {
+                            *MOVE_FOLDER_ITEM.write() = Some(folder_item.clone());
+                        },
+                        MoveOutline {}
+                        "Move"
+                    }
+                }
+
+                if !folder_item.is_file && let Some(move_folder_item) = &*MOVE_FOLDER_ITEM.read() {
+                    li {
+                        a {
+                            onclick: {
+                                let move_folder_item_id = move_folder_item.id;
+                                let move_folder_item_is_file = move_folder_item.is_file;
+                                let target_folder_id = folder_item.id;
+                                move |_| {
+                                    async move {
+                                        let result = if move_folder_item_is_file {
+                                            run_with_loader(
+                                                    "move-file".to_owned(),
+                                                    move || attempt_to_move_file(
+                                                        move_folder_item_id,
+                                                        Some(target_folder_id),
+                                                    ),
+                                                )
+                                                .await
+                                        } else {
+                                            run_with_loader(
+                                                    "move-folder".to_owned(),
+                                                    move || attempt_to_move_folder(
+                                                        move_folder_item_id,
+                                                        Some(target_folder_id),
+                                                    ),
+                                                )
+                                                .await
+                                        };
+                                        if result.is_ok() {
+                                            *MOVE_FOLDER_ITEM.write() = None;
+                                            on_update.call(());
+                                        }
+                                    }
+                                }
+                            },
+                            ClipboardDocumentListOutline {}
+                            "Paste here"
+                        }
                     }
                 }
 
@@ -59,10 +118,10 @@ pub fn FileMenu(#[props(into)] file: FilePresenter, #[props(into)] on_update: Ca
             }
         }
 
-        RenameFileModal {
+        RenameModal {
             is_open: show_rename_modal,
-            file: file.clone(),
-            on_close: move |_| {
+            folder_item: folder_item.clone(),
+            on_success: move |_| {
                 on_update.call(());
             },
         }
@@ -70,90 +129,35 @@ pub fn FileMenu(#[props(into)] file: FilePresenter, #[props(into)] on_update: Ca
         ConfirmationModal {
             is_open: show_trash_confirmation,
             on_accept: {
-                let file_id = file.id;
+                let folder_item_id = folder_item.id;
                 move |_| {
                     async move {
-                        let result = run_with_loader(
-
-                                "move-file-to-trash".to_owned(),
-                                move || attempt_to_move_file_to_trash(file_id),
-                            )
-                            .await;
+                        let result = if folder_item.is_file {
+                            run_with_loader(
+                                    "move-file-to-trash".to_owned(),
+                                    move || attempt_to_move_file_to_trash(folder_item_id),
+                                )
+                                .await
+                        } else {
+                            run_with_loader(
+                                    "move-folder-to-trash".to_owned(),
+                                    move || attempt_to_move_folder_to_trash(folder_item_id),
+                                )
+                                .await
+                        };
                         if result.is_ok() {
                             on_update.call(());
                         }
                     }
                 }
             },
-            "Are you sure you want to move this file to trash?"
-        }
-    }
-}
-
-#[component]
-pub fn FolderMenu(#[props(into)] folder: FolderPresenter, #[props(into)] on_update: Callback) -> Element {
-    let mut show_rename_modal = use_signal(|| false);
-    let mut show_trash_confirmation = use_signal(|| false);
-
-    rsx! {
-        div { class: "dropdown dropdown-end",
-            button { class: "btn btn-outline btn-square", tabindex: 0, EllipsisVerticalOutline {} }
-
-            ul {
-                class: "menu menu-sm dropdown-content bg-base-200 rounded-box shadow mt-3 p-2 w-max z-1",
-                tabindex: 0,
-
-                li {
-                    a {
-                        onclick: move |_| {
-                            *show_rename_modal.write() = true;
-                        },
-                        PencilOutline {}
-                        "Rename"
-                    }
-                }
-
-                div { class: "divider m-1" }
-
-                li {
-                    a {
-                        onclick: move |_| {
-                            *show_trash_confirmation.write() = true;
-                        },
-                        TrashOutline {}
-                        "Move to trash"
-                    }
-                }
+            "Are you sure you want to move this "
+            if folder_item.is_file {
+                "file"
+            } else {
+                "folder"
             }
-        }
-
-        RenameFolderModal {
-            is_open: show_rename_modal,
-            folder: folder.clone(),
-            on_close: move |_| {
-                on_update.call(());
-            },
-        }
-
-        ConfirmationModal {
-            is_open: show_trash_confirmation,
-            on_accept: {
-                let folder_id = folder.id;
-                move |()| {
-                    async move {
-                        let result = run_with_loader(
-
-                                "move-folder-to-trash".to_owned(),
-                                move || attempt_to_move_folder_to_trash(folder_id),
-                            )
-                            .await;
-                        if result.is_ok() {
-                            on_update.call(());
-                        }
-                    }
-                }
-            },
-            "Are you sure you want to move this folder to trash?"
+            " to trash?"
         }
     }
 }

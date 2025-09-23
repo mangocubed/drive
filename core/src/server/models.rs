@@ -9,9 +9,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
-use crate::server::commands::{
-    folder_is_trashed, get_folder_by_id, get_plan_by_id, get_used_space_by_user, get_user_by_id, verify_password,
-};
+use crate::server::commands::*;
 use crate::server::config::USERS_CONFIG;
 
 use super::config::STORAGE_CONFIG;
@@ -73,6 +71,12 @@ impl File<'_> {
         } else {
             None
         }
+    }
+
+    pub async fn parent_folders(&self) -> Vec<Folder<'_>> {
+        get_file_parent_folders(self)
+            .await
+            .expect("Could not get parent folders")
     }
 
     pub fn preview_url(&self) -> String {
@@ -202,6 +206,12 @@ impl Folder<'_> {
         } else {
             None
         }
+    }
+
+    pub async fn parent_folders(&self) -> Vec<Folder<'_>> {
+        get_folder_parent_folders(self)
+            .await
+            .expect("Could not get parent folders")
     }
 
     pub async fn user(&self) -> User<'_> {

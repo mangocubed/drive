@@ -3,9 +3,32 @@ use validator::{Validate, ValidationErrors};
 use crate::inputs::RenameInput;
 use crate::server::constants::ERROR_ALREADY_EXISTS;
 use crate::server::db_pool;
-use crate::server::models::File;
+use crate::server::models::{File, Folder};
 
-use super::file_name_exists;
+use super::{file_name_exists, get_parent_folders_by_id};
+
+pub async fn get_file_parent_folders<'a>(file: &File<'_>) -> sqlx::Result<Vec<Folder<'a>>> {
+    get_parent_folders_by_id(file.parent_folder_id).await
+}
+
+pub async fn move_file(file: &File<'_>, target_folder: Option<&Folder<'_>>) -> sqlx::Result<()> {
+    let target_folder_id = target_folder.map(|tf| tf.id);
+
+    if file.parent_folder_id == target_folder_id {
+        return Ok(());
+    }
+
+    let db_pool = db_pool().await;
+
+    sqlx::query!(
+        "UPDATE files SET parent_folder_id = $2 WHERE id = $1",
+        file.id,          // $1
+        target_folder_id, // $2
+    )
+    .execute(db_pool)
+    .await
+    .map(|_| ())
+}
 
 pub async fn rename_file(file: &File<'_>, input: &RenameInput) -> Result<(), ValidationErrors> {
     input.validate()?;

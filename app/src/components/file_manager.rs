@@ -5,15 +5,20 @@ use uuid::Uuid;
 use drive_core::enums::FileVisibility;
 use drive_core::inputs::FileInput;
 
-use crate::components::{FileMenu, FolderMenu};
+use crate::components::FolderItemMenu;
 use crate::forms::{Form, FormSuccessModal, SelectField, TextField};
 use crate::hooks::{use_current_user, use_form_provider, use_resource_with_loader};
 use crate::icons::{
-    ArrowUpTrayOutline, CheckCircleOutline, ExclamationTriangleOutline, FolderOutline, FolderPlusOutline,
+    ArrowUpTrayOutline, CheckCircleOutline, ExclamationTriangleOutline, FolderOutline, FolderPlusOutline, MoveOutline,
 };
 use crate::presenters::FolderPresenter;
 use crate::routes::Routes;
-use crate::server_fns::{attempt_to_create_folder, attempt_to_upload_file, get_all_folder_items};
+use crate::server_fns::{
+    attempt_to_create_folder, attempt_to_move_file, attempt_to_move_folder, attempt_to_upload_file,
+    get_all_folder_items,
+};
+use crate::signals::MOVE_FOLDER_ITEM;
+use crate::utils::run_with_loader;
 
 use super::Modal;
 
@@ -46,6 +51,7 @@ pub fn FileManager(
                     FolderPlusOutline {}
                     "New folder"
                 }
+
                 label { class: "btn btn-outline join-item",
                     input {
                         accept: "image/bmp,image/gif,image/jpeg,image/png,image/webp",
@@ -78,8 +84,8 @@ pub fn FileManager(
             }
 
             if let Some(folder) = folder() {
-                FolderMenu {
-                    folder,
+                FolderItemMenu {
+                    folder_item: folder,
                     on_update: move |_| {
                         navigator.push(Routes::home());
                     },
@@ -121,8 +127,8 @@ pub fn FileManager(
                                 }
 
                                 div { class: "absolute top-0.5 right-0.5",
-                                    FileMenu {
-                                        file: folder_item,
+                                    FolderItemMenu {
+                                        folder_item: folder_item.clone(),
                                         on_update: move |_| all_folder_items.restart(),
                                     }
                                 }
@@ -138,8 +144,8 @@ pub fn FileManager(
                                 }
 
                                 div { class: "absolute top-0.5 right-0.5",
-                                    FolderMenu {
-                                        folder: folder_item,
+                                    FolderItemMenu {
+                                        folder_item: folder_item.clone(),
                                         on_update: move |_| all_folder_items.restart(),
                                     }
                                 }
@@ -149,6 +155,64 @@ pub fn FileManager(
                 }
             } else {
                 div { class: "text-center mt-6", "This folder is empty" }
+            }
+        }
+
+        if let Some(move_folder_item) = &*MOVE_FOLDER_ITEM.read() {
+            div { class: "fixed bottom-4 flex",
+                div { role: "alert", class: "alert",
+                    MoveOutline {}
+
+                    "Moving \""
+                    {move_folder_item.name.clone()}
+                    "\""
+
+                    button {
+                        class: "btn btn-sm btn-outline",
+                        onclick: move |event| {
+                            event.prevent_default();
+                            *MOVE_FOLDER_ITEM.write() = None;
+                        },
+                        "Cancel"
+                    }
+
+                    button {
+                        class: "btn btn-sm btn-primary",
+                        onclick: {
+                            let move_folder_item_id = move_folder_item.id;
+                            let move_folder_item_is_file = move_folder_item.is_file;
+                            move |event| {
+                                event.prevent_default();
+                                async move {
+                                    let result = if move_folder_item_is_file {
+                                        run_with_loader(
+                                                "move-file".to_owned(),
+                                                move || attempt_to_move_file(
+                                                    move_folder_item_id,
+                                                    folder_id(),
+                                                ),
+                                            )
+                                            .await
+                                    } else {
+                                        run_with_loader(
+                                                "move-folder".to_owned(),
+                                                move || attempt_to_move_folder(
+                                                    move_folder_item_id,
+                                                    folder_id(),
+                                                ),
+                                            )
+                                            .await
+                                    };
+                                    if result.is_ok() {
+                                        *MOVE_FOLDER_ITEM.write() = None;
+                                        all_folder_items.restart();
+                                    }
+                                }
+                            }
+                        },
+                        "Paste here"
+                    }
+                }
             }
         }
     }
