@@ -9,6 +9,10 @@ use crate::server::models::User;
 
 use super::{delete_all_access_tokens_by_user, encrypt_password};
 
+pub async fn can_insert_user() -> bool {
+    get_users_count().await.unwrap_or_default() < USERS_CONFIG.limit.into()
+}
+
 pub async fn disable_user(user: &User<'_>) -> sqlx::Result<()> {
     let db_pool = db_pool().await;
 
@@ -55,14 +59,14 @@ pub async fn get_user_by_access_token<'a>(token: &str) -> sqlx::Result<User<'a>>
 async fn get_users_count() -> sqlx::Result<i64> {
     let db_pool = db_pool().await;
 
-    sqlx::query!(r#"SELECT COUNT(*) as "count!" FROM users WHERE disabled_at IS NOT NULL"#)
+    sqlx::query!(r#"SELECT COUNT(*) as "count!" FROM users WHERE disabled_at IS NULL"#)
         .fetch_one(db_pool)
         .await
         .map(|row| row.count)
 }
 
 pub async fn insert_user<'a>(input: &RegisterInput) -> Result<User<'a>, ValidationErrors> {
-    if get_users_count().await.unwrap_or_default() >= USERS_CONFIG.limit.into() {
+    if !can_insert_user().await {
         return Err(ValidationErrors::new());
     }
 

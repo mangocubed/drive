@@ -1,12 +1,9 @@
-use std::fs::File as FsFile;
-use std::io::Write;
+use std::ffi::OsStr;
 
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use bytesize::ByteSize;
-use file_format::FileFormat;
-use md5::{Digest, Md5};
 use rand::distr::Alphanumeric;
 use rand::{Rng, rng};
 use strum::IntoEnumIterator;
@@ -14,7 +11,7 @@ use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
 use crate::enums::FileVisibility;
-use crate::inputs::{FileInput, FolderInput, LoginInput};
+use crate::inputs::{FolderInput, LoginInput};
 
 use super::config::STORAGE_CONFIG;
 use super::constants::*;
@@ -113,6 +110,12 @@ fn generate_random_string(length: u8) -> String {
         .collect()
 }
 
+pub fn get_available_space() -> ByteSize {
+    let stats = uucore::fsext::statfs(OsStr::new(STORAGE_CONFIG.path.as_str())).expect("Could not get storage stats");
+
+    ByteSize(stats.f_bavail * stats.f_bsize as u64)
+}
+
 pub async fn get_file_by_id<'a>(id: Uuid, user: Option<&User<'_>>) -> sqlx::Result<File<'a>> {
     let db_pool = db_pool().await;
     let user_id = user.map(|u| u.id);
@@ -197,86 +200,6 @@ pub async fn get_user_by_username(username: &str) -> sqlx::Result<User<'_>> {
     )
     .fetch_one(db_pool)
     .await
-}
-
-pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<'a>, ValidationErrors> {
-    input.validate()?;
-
-    let mut validation_errors = ValidationErrors::new();
-    let db_pool = db_pool().await;
-
-    let mut md5_hasher = Md5::new();
-    let mut visibility = FileVisibility::Private;
-    let byte_size = input.content.len();
-    let file_format = FileFormat::from_bytes(&input.content);
-    let available_space = user.available_space().await;
-
-    if file_name_exists(user, input.parent_folder_id, &input.name).await {
-        validation_errors.add("name", ERROR_ALREADY_EXISTS.clone());
-    }
-
-    if let Some(parent_folder_id) = input.parent_folder_id {
-        if let Ok(parent_folder) = get_folder_by_id(parent_folder_id, Some(user)).await {
-            visibility = parent_folder.visibility;
-        } else {
-            validation_errors.add("parent_folder_id", ERROR_IS_INVALID.clone());
-        }
-    }
-
-    let file_size = ByteSize(byte_size as u64);
-
-    if STORAGE_CONFIG.max_size_per_file() < file_size || available_space < file_size {
-        validation_errors.add("content", ERROR_IS_TOO_LARGE.clone());
-    } else if !ALLOWED_FILE_FORMATS.contains(&file_format) {
-        validation_errors.add("content", ERROR_IS_INVALID.clone());
-    }
-
-    if !validation_errors.is_empty() {
-        return Err(validation_errors);
-    }
-
-    md5_hasher.update(&input.content);
-
-    let md5_checksum = format!("{:x}", md5_hasher.finalize());
-
-    let result = sqlx::query_as!(
-        File,
-        r#"INSERT INTO files (user_id, parent_folder_id, name, visibility, media_type, byte_size, md5_checksum)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING
-            id,
-            user_id,
-            parent_folder_id,
-            name,
-            visibility as "visibility!: FileVisibility",
-            media_type,
-            byte_size,
-            md5_checksum,
-            trashed_at,
-            created_at,
-            updated_at"#,
-        user.id,                  // $1
-        input.parent_folder_id,   // $2
-        input.name,               // $3
-        visibility as _,          // $4
-        file_format.media_type(), // $5
-        byte_size as i64,         // $6
-        md5_checksum,             // $7
-    )
-    .fetch_one(db_pool)
-    .await;
-
-    match result {
-        Ok(file) => {
-            let _ = std::fs::create_dir_all(file.directory());
-            let mut fs_file = FsFile::create(file.default_path()).unwrap();
-
-            let _ = fs_file.write_all(&input.content);
-
-            Ok(file)
-        }
-        Err(_) => Err(ValidationErrors::new()),
-    }
 }
 
 pub async fn insert_folder<'a>(user: &User<'_>, input: &FolderInput) -> Result<Folder<'a>, ValidationErrors> {
@@ -430,41 +353,6 @@ mod tests {
         let folder = insert_test_folder(None, None).await;
 
         let result = get_folder_by_id(folder.id, Some(&invalid_user)).await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn should_insert_a_file() {
-        let user = insert_test_user(None).await;
-        let input = FileInput {
-            parent_folder_id: None,
-            name: fake_name() + ".jpg",
-            content: vec![0xFF, 0xD8, 0xFF],
-        };
-
-        let result = insert_file(&user, &input).await;
-
-        assert!(result.is_ok());
-
-        let file = result.unwrap();
-
-        assert_eq!(file.user_id, user.id);
-        assert!(file.parent_folder_id.is_none());
-        assert_eq!(file.name, input.name);
-        assert_eq!(file.media_type, "image/jpeg")
-    }
-
-    #[tokio::test]
-    async fn should_not_insert_an_invalid_file() {
-        let user = insert_test_user(None).await;
-        let input = FileInput {
-            parent_folder_id: None,
-            name: fake_name() + ".jpg",
-            content: vec![],
-        };
-
-        let result = insert_file(&user, &input).await;
 
         assert!(result.is_err());
     }

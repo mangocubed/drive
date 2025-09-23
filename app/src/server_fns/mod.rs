@@ -140,7 +140,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum ServFnError {
     LoginRequired,
     NoLoginRequired,
@@ -259,6 +259,11 @@ async fn extract_user<'a>() -> ServFnResult<Option<User<'a>>> {
     } else {
         Ok(None)
     }
+}
+
+#[server(client = ServFnClient)]
+pub async fn can_register_user() -> ServFnResult<bool> {
+    Ok(drive_core::server::commands::can_insert_user().await)
 }
 
 #[server(client = ServFnClient)]
