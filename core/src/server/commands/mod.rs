@@ -1,5 +1,3 @@
-use std::ffi::OsStr;
-
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
@@ -12,8 +10,8 @@ use validator::{Validate, ValidationErrors};
 
 use crate::enums::FileVisibility;
 use crate::inputs::{FolderInput, LoginInput};
+use crate::server::config::STORAGE_CONFIG;
 
-use super::config::STORAGE_CONFIG;
 use super::constants::*;
 use super::db_pool;
 use super::models::{File, Folder, User};
@@ -111,7 +109,7 @@ fn generate_random_string(length: u8) -> String {
 }
 
 pub fn get_available_space() -> ByteSize {
-    let stats = uucore::fsext::statfs(OsStr::new(STORAGE_CONFIG.path.as_str())).expect("Could not get storage stats");
+    let stats = uucore::fsext::statfs(STORAGE_CONFIG.path().as_os_str()).expect("Could not get storage stats");
 
     ByteSize(stats.f_bavail * stats.f_bsize as u64)
 }
