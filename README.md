@@ -6,6 +6,9 @@ Cloud storage & digital distribution platform.
 
 | Name                          | Type    | Default                                                          |
 | ----------------------------- | ------- | ---------------------------------------------------------------- |
+| APP_SERVER_URL                | String  | http://127.0.0.1:8080/                                           |
+| APP_OLD_TOKENS                | Array   | []                                                               |
+| APP_TOKEN                     | String  | 00000000                                                         |
 | DATABASE_MAX_CONNECTIONS      | Integer | 5                                                                |
 | DATABASE_URL                  | String  | postgres://mango3:mango3@127.0.0.1:5432/drive_dev                |
 | POLAR_BASE_URL                | String  | https://sandbox-api.polar.sh/v1/                                 |

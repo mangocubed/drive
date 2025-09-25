@@ -10,7 +10,7 @@ use validator::{Validate, ValidationErrors};
 
 use crate::enums::FileVisibility;
 use crate::inputs::{FolderInput, LoginInput};
-use crate::server::config::STORAGE_CONFIG;
+use crate::server::config::{APP_CONFIG, STORAGE_CONFIG};
 
 use super::constants::*;
 use super::db_pool;
@@ -247,6 +247,10 @@ pub async fn insert_folder<'a>(user: &User<'_>, input: &FolderInput) -> Result<F
     .fetch_one(db_pool)
     .await
     .map_err(|_| ValidationErrors::new())
+}
+
+pub fn verify_app_token(app_token: &str) -> bool {
+    app_token == APP_CONFIG.token || APP_CONFIG.old_tokens.contains(&app_token.to_owned())
 }
 
 pub(crate) fn verify_password(encrypted_password: &str, password: &str) -> bool {
