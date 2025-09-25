@@ -12,9 +12,9 @@ use dioxus::fullstack::mock_client::MockServerFnClient;
 #[cfg(not(feature = "server"))]
 use futures::{Sink, Stream};
 #[cfg(feature = "server")]
-use headers::Authorization;
-#[cfg(feature = "server")]
 use headers::authorization::Bearer;
+#[cfg(feature = "server")]
+use headers::{Authorization, HeaderMap};
 #[cfg(feature = "server")]
 use serde_json::Value;
 #[cfg(feature = "web")]
@@ -50,6 +50,11 @@ pub use folder_server_fns::*;
 pub use login_server_fns::*;
 pub use trash_server_fns::*;
 
+const HEADER_APP_TOKEN: &str = "X-App-Token";
+
+#[cfg(not(feature = "server"))]
+const HEADER_AUTHORIZATION: &str = "Authorization";
+
 #[cfg(feature = "server")]
 pub type ServFnClient = MockServerFnClient;
 
@@ -72,8 +77,10 @@ where
         let headers = req.headers();
         let access_token = data_storage().get_access_token();
 
+        headers.append(HEADER_APP_TOKEN, env!("APP_TOKEN"));
+
         if let Some(token) = access_token {
-            headers.append("Authorization", &format!("Bearer {token}",));
+            headers.append(HEADER_AUTHORIZATION, &format!("Bearer {token}"));
         }
 
         <BrowserClient as Client<E, IS, OS>>::send(req)
@@ -114,8 +121,10 @@ where
         let headers = req.headers_mut();
         let access_token = data_storage().get_access_token();
 
+        headers.append(HEADER_APP_TOKEN, env!("APP_TOKEN").parse().unwrap());
+
         if let Some(token) = access_token {
-            headers.append("Authorization", format!("Bearer {token}").parse().unwrap());
+            headers.append(HEADER_AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
         }
 
         <ReqwestClient as Client<E, IS, OS>>::send(req)
@@ -142,6 +151,7 @@ where
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum ServFnError {
+    AppTokenRequired,
     LoginRequired,
     NoLoginRequired,
     Other(String),
@@ -251,6 +261,18 @@ async fn extract_access_token<'a>() -> ServFnResult<Option<AccessToken<'a>>> {
 }
 
 #[cfg(feature = "server")]
+async fn extract_app_token() -> ServFnResult<Option<String>> {
+    let app_token = extract::<HeaderMap, _>()
+        .await
+        .map_err(|error| ServFnError::Other(error.to_string()))?
+        .get(HEADER_APP_TOKEN)
+        .and_then(|value| value.to_str().ok())
+        .map(|token| token.to_owned());
+
+    Ok(app_token)
+}
+
+#[cfg(feature = "server")]
 async fn extract_user<'a>() -> ServFnResult<Option<User<'a>>> {
     if let Some(bearer) = extract_bearer().await? {
         Ok(drive_core::server::commands::get_user_by_access_token(bearer.token())
@@ -263,6 +285,8 @@ async fn extract_user<'a>() -> ServFnResult<Option<User<'a>>> {
 
 #[server(client = ServFnClient)]
 pub async fn can_register_user() -> ServFnResult<bool> {
+    require_no_login().await?;
+
     Ok(drive_core::server::commands::can_insert_user().await)
 }
 
@@ -289,6 +313,8 @@ pub async fn get_all_folder_items(parent_folder_id: Option<Uuid>) -> ServFnResul
 
 #[server(client = ServFnClient)]
 pub async fn get_current_user() -> ServFnResult<Option<UserPresenter>> {
+    require_app_token().await?;
+
     let Some(user) = extract_user().await? else {
         return Ok(None);
     };
@@ -340,23 +366,38 @@ pub async fn get_all_available_plans() -> ServFnResult<Vec<PlanPresenter>> {
 
 #[server(client = ServFnClient)]
 pub async fn is_logged_in() -> ServFnResult<bool> {
+    require_app_token().await?;
+
     Ok(extract_access_token().await?.is_some())
 }
 
 #[cfg(feature = "server")]
-async fn require_login() -> ServFnResult<()> {
-    if !is_logged_in().await? {
-        Err(ServerFnError::ServerError(ServFnError::LoginRequired))
-    } else {
+async fn require_app_token() -> ServFnResult<()> {
+    let app_token = extract_app_token().await?;
+
+    if let Some(app_token) = app_token
+        && drive_core::server::commands::verify_app_token(&app_token)
+    {
         Ok(())
+    } else {
+        Err(ServerFnError::ServerError(ServFnError::AppTokenRequired))
+    }
+}
+
+#[cfg(feature = "server")]
+async fn require_login() -> ServFnResult<()> {
+    if is_logged_in().await? {
+        Ok(())
+    } else {
+        Err(ServerFnError::ServerError(ServFnError::LoginRequired))
     }
 }
 
 #[cfg(feature = "server")]
 async fn require_no_login() -> ServFnResult<()> {
-    if is_logged_in().await? {
-        Err(ServerFnError::ServerError(ServFnError::NoLoginRequired))
-    } else {
+    if !is_logged_in().await? {
         Ok(())
+    } else {
+        Err(ServerFnError::ServerError(ServFnError::NoLoginRequired))
     }
 }

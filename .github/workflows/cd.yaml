@@ -29,6 +29,9 @@ jobs:
             - uses: ./.github/actions/setup-node
             - run: npm run build
             - run: dx bundle --package drive-app --web --release --verbose
+              env:
+                  APP_SERVER_URL: ${{ vars.APP_SERVER_URL }}
+                  APP_TOKEN: ${{ secrets.APP_TOKEN }}
             - uses: actions/upload-artifact@v4
               with:
                   name: drive_app_build

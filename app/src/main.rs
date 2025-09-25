@@ -42,7 +42,6 @@ struct FileQuery {
 #[tokio::main]
 async fn main() {
     use axum::routing::get;
-    use tokio::net::TcpListener;
 
     dioxus::logger::initialize_default();
 
@@ -51,13 +50,16 @@ async fn main() {
         .serve_dioxus_application(ServeConfig::new().unwrap(), App);
 
     let addr = dioxus::cli_config::fullstack_address_or_localhost();
-    let listener = TcpListener::bind(&addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
     axum::serve(listener, app.into_make_service()).await.unwrap();
 }
 
 #[cfg(not(feature = "server"))]
 fn main() {
+    #[cfg(not(feature = "web"))]
+    dioxus::fullstack::set_server_url(env!("APP_SERVER_URL"));
+
     dioxus::launch(App);
 }
 

@@ -18,10 +18,28 @@ where
         .unwrap()
 }
 
+pub static APP_CONFIG: LazyLock<AppConfig> = LazyLock::new(|| extract_from_env("APP_"));
 pub(crate) static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_from_env("DATABASE_"));
 pub(crate) static POLAR_CONFIG: LazyLock<PolarConfig> = LazyLock::new(|| extract_from_env("POLAR_"));
 pub(crate) static STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| extract_from_env("STORAGE_"));
 pub(crate) static USERS_CONFIG: LazyLock<UsersConfig> = LazyLock::new(|| extract_from_env("USERS_"));
+
+#[derive(Deserialize, Serialize)]
+pub struct AppConfig {
+    pub server_url: Url,
+    pub token: String,
+    pub old_tokens: Vec<String>,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            server_url: Url::parse("http://127.0.0.1:8080").unwrap(),
+            token: "00000000".to_owned(),
+            old_tokens: Vec::new(),
+        }
+    }
+}
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct DatabaseConfig {
@@ -51,7 +69,7 @@ impl Default for PolarConfig {
     fn default() -> Self {
         Self {
             base_url: "https://sandbox-api.polar.sh/v1/".parse().unwrap(),
-            access_token: "".to_owned(),
+            access_token: String::new(),
             success_base_url: "http://127.0.0.1:8080/".parse().unwrap(),
         }
     }
