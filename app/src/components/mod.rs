@@ -2,11 +2,8 @@ use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
 
 use crate::components::modals::RenameModal;
-use crate::icons::{
-    ArrowDownTrayOutline, ClipboardDocumentListOutline, EllipsisVerticalOutline, MoveOutline, PencilOutline,
-    TrashOutline,
-};
-use crate::presenters::FolderItemPresenter;
+use crate::icons::*;
+use crate::presenters::{FilePresenter, FolderItemPresenter};
 use crate::server_fns::*;
 use crate::signals::MOVE_FOLDER_ITEM;
 use crate::utils::{can_be_moved, run_with_loader};
@@ -17,6 +14,98 @@ mod modals;
 
 pub use file_manager::FileManager;
 pub use modals::{AboutModal, ConfirmationModal, Modal, SubscriptionModal};
+
+#[cfg(feature = "web")]
+#[component]
+fn DownloadLink(#[props(into)] file: FilePresenter) -> Element {
+    use dioxus::web::WebEventExt;
+    use web_sys::HtmlAnchorElement;
+    use web_sys::wasm_bindgen::JsCast;
+
+    let mut download_url = use_signal(|| None);
+    let mut download_el: Signal<Option<HtmlAnchorElement>> = use_signal(|| None);
+
+    use_effect(move || {
+        if let Some(el) = download_el()
+            && download_url().is_some()
+        {
+            el.click();
+        }
+    });
+
+    rsx! {
+        a {
+            onclick: move |_| {
+                async move {
+                    let result = run_with_loader(
+                            "get-file-url".to_owned(),
+                            move || get_file_url(file.id),
+                        )
+                        .await;
+
+                    if let Ok(mut file_url) = result {
+                        file_url.set_query(Some("download=true"));
+
+                        *download_url.write() = Some(file_url);
+                    }
+                }
+            },
+            ArrowDownTrayOutline {}
+            "Download"
+        }
+
+        a {
+            onmounted: move |event| {
+                *download_el.write() = event
+                    .data()
+                    .as_web_event()
+                    .dyn_into::<HtmlAnchorElement>()
+                    .ok();
+            },
+            class: "hidden",
+            download: file.name.clone(),
+            href: download_url().map(|url| url.to_string()),
+        }
+    }
+}
+
+#[cfg(any(feature = "desktop", feature = "mobile"))]
+#[component]
+fn DownloadLink(#[props(into)] file: FilePresenter) -> Element {
+    rsx! {
+        a {
+            onclick: move |_| {
+                async move {
+                    let result = run_with_loader(
+                            "get-file-url".to_owned(),
+                            move || get_file_url(file.id),
+                        )
+                        .await;
+
+                    if let Ok(mut file_url) = result {
+                        file_url.set_query(Some("download=true"));
+
+                        #[cfg(feature = "desktop")]
+                        let _ = dioxus::desktop::use_window()
+                            .webview
+                            .load_url(file_url.as_ref());
+
+                        #[cfg(feature = "mobile")]
+                        let _ = dioxus::mobile::use_window().webview.load_url(file_url.as_ref());
+                    }
+                }
+            },
+            ArrowDownTrayOutline {}
+            "Download"
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+#[component]
+fn DownloadLink(#[props(into)] file: FilePresenter) -> Element {
+    VNode::empty()
+}
 
 #[component]
 pub fn FolderItemMenu(#[props(into)] folder_item: FolderItemPresenter, #[props(into)] on_update: Callback) -> Element {
@@ -32,12 +121,7 @@ pub fn FolderItemMenu(#[props(into)] folder_item: FolderItemPresenter, #[props(i
                 tabindex: 0,
                 if folder_item.is_file {
                     li {
-                        a {
-                            download: folder_item.name.clone(),
-                            href: folder_item.url.clone(),
-                            ArrowDownTrayOutline {}
-                            "Download"
-                        }
+                        DownloadLink { file: folder_item.clone() }
                     }
 
                     div { class: "divider m-1" }

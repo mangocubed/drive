@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use url::Url;
 use uuid::Uuid;
 
 use drive_core::inputs::RenameInput;
@@ -53,4 +54,16 @@ pub async fn attempt_to_rename_file(input: RenameInput) -> ServFnResult<FormStat
         Ok(_) => Ok(FormStatus::Success("File renamed successfully".to_owned(), Value::Null)),
         Err(errors) => Ok(FormStatus::Failed("Failed to rename file".to_owned(), errors)),
     }
+}
+
+#[server(client = ServFnClient)]
+pub async fn get_file_url(id: Uuid) -> ServFnResult<Url> {
+    require_login().await?;
+
+    let user = extract_user().await?.unwrap();
+    let file = drive_core::server::commands::get_file_by_id(id, Some(&user))
+        .await
+        .map_err(|_| ServFnError::Other("Could not get file".to_owned()))?;
+
+    Ok(file.url().await)
 }

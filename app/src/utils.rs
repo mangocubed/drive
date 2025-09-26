@@ -96,8 +96,12 @@ impl DataStorageTrait for DataWebStorage {
 fn get_config_dir() -> std::path::PathBuf {
     use std::fs;
 
-    let project_dirs =
-        directories::ProjectDirs::from("app.mango3.drive", "Mango³", "Mango³").expect("Could not get project dirs");
+    #[cfg(not(target_os = "linux"))]
+    let path = "drive";
+    #[cfg(target_os = "linux")]
+    let path = "mango3-drive";
+
+    let project_dirs = directories::ProjectDirs::from("app", "mango3", path).expect("Could not get project dirs");
     let config_dir = project_dirs.config_dir();
 
     fs::create_dir_all(config_dir).expect("Could not create config dir");

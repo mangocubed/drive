@@ -36,6 +36,7 @@ struct FileQuery {
     width: Option<u16>,
     height: Option<u16>,
     fill: Option<bool>,
+    download: Option<bool>,
 }
 
 #[cfg(feature = "server")]
@@ -46,7 +47,7 @@ async fn main() {
     dioxus::logger::initialize_default();
 
     let app = axum::Router::new()
-        .route("/storage/files/{id}", get(get_storage_file))
+        .route("/storage/files/{key_id}", get(get_storage_file))
         .serve_dioxus_application(ServeConfig::new().unwrap(), App);
 
     let addr = dioxus::cli_config::fullstack_address_or_localhost();
@@ -64,14 +65,15 @@ fn main() {
 }
 
 #[cfg(feature = "server")]
-async fn get_storage_file(Path(id): Path<Uuid>, Query(query): Query<FileQuery>) -> impl IntoResponse {
+async fn get_storage_file(Path(key_id): Path<Uuid>, Query(query): Query<FileQuery>) -> impl IntoResponse {
     use axum::body::Body;
     use axum::http::StatusCode;
     use axum::http::header::{CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_TYPE};
 
-    let file = drive_core::server::commands::get_file_by_id(id, None)
+    let file_key = drive_core::server::commands::get_file_key_by_id(key_id)
         .await
-        .map_err(|_| (StatusCode::NOT_FOUND, "FILE NOT FOUND"))?;
+        .map_err(|_| (StatusCode::NOT_FOUND, "FILE KEY NOT FOUND"))?;
+    let file = file_key.file().await;
 
     let Some(content) = file.read_variant(query.width, query.height, query.fill) else {
         return Err((StatusCode::FORBIDDEN, "FORBIDDEN"));
@@ -86,7 +88,12 @@ async fn get_storage_file(Path(id): Path<Uuid>, Query(query): Query<FileQuery>) 
         (
             CONTENT_DISPOSITION,
             format!(
-                "inline; filename=\"{}\"",
+                "{}; filename=\"{}\"",
+                if query.download == Some(true) {
+                    "attachment"
+                } else {
+                    "inline"
+                },
                 file.variant_filename(query.width, query.height, query.fill)
             ),
         ),
