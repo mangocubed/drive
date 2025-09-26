@@ -119,7 +119,7 @@ pub fn FileManager(
                                     to: Routes::file(folder_item.id),
                                     img {
                                         class: "rounded-lg m-auto min-h-0",
-                                        src: folder_item.preview_url.clone(),
+                                        src: folder_item.variant_url(200, 200, false).unwrap().to_string(),
                                     }
                                     div { class: "normal-case truncate w-full shrink-0",
                                         {folder_item.name.clone()}

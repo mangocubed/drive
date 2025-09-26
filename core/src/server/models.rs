@@ -7,6 +7,7 @@ use file_format::FileFormat;
 use image::metadata::Orientation;
 use image::{DynamicImage, ImageDecoder, ImageReader};
 use serde::Serialize;
+use url::Url;
 use uuid::Uuid;
 
 use crate::enums::FileVisibility;
@@ -81,10 +82,6 @@ impl File<'_> {
             .expect("Could not get parent folders")
     }
 
-    pub fn preview_url(&self) -> String {
-        format!("{}?width=800&height=800", self.url())
-    }
-
     pub fn read(&self) -> Option<Vec<u8>> {
         std::fs::read(self.default_path()).ok()
     }
@@ -124,8 +121,8 @@ impl File<'_> {
         self.read()
     }
 
-    pub fn url(&self) -> String {
-        format!("/storage/files/{}", self.id)
+    pub async fn url(&self) -> Url {
+        get_file_url(self).await.expect("Could not get file URL")
     }
 
     pub async fn user(&self) -> User<'_> {
@@ -178,6 +175,19 @@ impl<'a> From<&FolderItem<'a>> for File<'a> {
             created_at: item.created_at,
             updated_at: item.updated_at,
         }
+    }
+}
+
+pub struct FileKey {
+    pub id: Uuid,
+    pub file_id: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl FileKey {
+    pub async fn file(&self) -> File<'_> {
+        get_file_by_id(self.file_id, None).await.expect("Could not get file")
     }
 }
 
@@ -247,20 +257,12 @@ pub struct FolderItem<'a> {
 }
 
 impl FolderItem<'_> {
-    pub fn preview_url(&self) -> Option<String> {
-        if self.is_file {
-            Some(format!("/storage/files/{}?width=200&height=200", self.id))
-        } else {
-            None
+    pub async fn url(&self) -> Option<Url> {
+        if !self.is_file {
+            return None;
         }
-    }
 
-    pub fn url(&self) -> Option<String> {
-        if self.is_file {
-            Some(format!("/storage/files/{}", self.id))
-        } else {
-            None
-        }
+        Some(get_file_url(&(self.into())).await.expect("Could not get file URL"))
     }
 
     pub async fn parent_folders(&self) -> Vec<Folder<'_>> {

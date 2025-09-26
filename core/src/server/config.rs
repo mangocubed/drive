@@ -77,6 +77,7 @@ impl Default for PolarConfig {
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct StorageConfig {
+    pub file_key_duration_secs: u16,
     pub image_filter_type: FilterType,
     max_size_gib_per_file: u8,
     path: String,
@@ -85,6 +86,7 @@ pub(crate) struct StorageConfig {
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
+            file_key_duration_secs: 60,
             image_filter_type: FilterType::CatmullRom,
             max_size_gib_per_file: 1,
             #[cfg(not(test))]

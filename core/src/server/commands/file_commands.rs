@@ -4,20 +4,42 @@ use std::io::Write;
 use bytesize::ByteSize;
 use file_format::FileFormat;
 use md5::{Digest, Md5};
+use url::Url;
+use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
 use crate::enums::FileVisibility;
 use crate::inputs::{FileInput, RenameInput};
-use crate::server::commands::get_available_space;
-use crate::server::config::STORAGE_CONFIG;
+use crate::server::config::{APP_CONFIG, STORAGE_CONFIG};
 use crate::server::constants::{ALLOWED_FILE_FORMATS, ERROR_ALREADY_EXISTS, ERROR_IS_INVALID, ERROR_IS_TOO_LARGE};
 use crate::server::db_pool;
-use crate::server::models::{File, Folder, User};
+use crate::server::models::{File, FileKey, Folder, User};
 
-use super::{file_name_exists, get_folder_by_id, get_parent_folders_by_id};
+use super::{file_name_exists, get_available_space, get_folder_by_id, get_parent_folders_by_id};
 
 pub async fn get_file_parent_folders<'a>(file: &File<'_>) -> sqlx::Result<Vec<Folder<'a>>> {
     get_parent_folders_by_id(file.parent_folder_id).await
+}
+
+pub async fn get_file_key_by_id(id: Uuid) -> sqlx::Result<FileKey> {
+    let db_pool = db_pool().await;
+
+    sqlx::query_as!(
+        FileKey,
+        "SELECT * FROM file_keys WHERE id = $1 AND created_at > current_timestamp - MAKE_INTERVAL(secs => $2)
+        LIMIT 1",
+        id,                                           // $1
+        STORAGE_CONFIG.file_key_duration_secs as f64  // $2
+    )
+    .fetch_one(db_pool)
+    .await
+}
+
+pub async fn get_file_url(file: &File<'_>) -> anyhow::Result<Url> {
+    let file_key = insert_file_key(file).await?;
+    let file_url = APP_CONFIG.server_url.join(&format!("storage/files/{}", file_key.id))?;
+
+    Ok(file_url)
 }
 
 pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<'a>, ValidationErrors> {
@@ -107,6 +129,18 @@ pub async fn insert_file<'a>(user: &User<'_>, input: &FileInput) -> Result<File<
         }
         Err(_) => Err(ValidationErrors::new()),
     }
+}
+
+pub async fn insert_file_key(file: &File<'_>) -> sqlx::Result<FileKey> {
+    let db_pool = db_pool().await;
+
+    sqlx::query_as!(
+        FileKey,
+        "INSERT INTO file_keys (file_id) VALUES ($1) RETURNING *",
+        file.id, // $1
+    )
+    .fetch_one(db_pool)
+    .await
 }
 
 pub async fn move_file(file: &File<'_>, target_folder: Option<&Folder<'_>>) -> sqlx::Result<()> {

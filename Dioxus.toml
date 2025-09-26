@@ -1,7 +1,5 @@
 [application]
 name = "Mango³ Drive"
-asset_dir = "assets"
-
 
 [web.app]
 

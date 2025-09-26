@@ -95,7 +95,7 @@ pub fn TrashPage() -> Element {
                                 div { class: "btn flex-col gap-2 p-2 h-full w-full",
                                     img {
                                         class: "rounded-lg m-auto",
-                                        src: trash_item.preview_url.clone(),
+                                        src: trash_item.variant_url(200, 200, false).unwrap().to_string(),
                                     }
 
                                     div { class: "normal-case truncate w-full",

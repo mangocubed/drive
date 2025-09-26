@@ -64,7 +64,7 @@ pub fn FilePage(id: ReadSignal<Uuid>) -> Element {
             div { class: "my-4",
                 img {
                     class: "m-auto max-h-[calc(100vh-2rem)]",
-                    src: file.preview_url.clone(),
+                    src: file.variant_url(800, 800, false).to_string(),
                     alt: file.name.clone(),
                 }
             }

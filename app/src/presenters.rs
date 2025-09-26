@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use url::Url;
 use uuid::Uuid;
 
 use drive_core::enums::FileVisibility;
@@ -11,6 +12,14 @@ pub trait AsyncInto<T> {
     fn async_into(&self) -> impl std::future::Future<Output = T>;
 }
 
+fn file_variant_url(file_url: &Url, width: u16, height: u16, fill: bool) -> Url {
+    let mut variant_url = file_url.clone();
+
+    variant_url.set_query(Some(&format!("width={width}&height={height}&fill={fill}")));
+
+    variant_url
+}
+
 #[derive(Clone, Deserialize, PartialEq, Serialize)]
 pub struct FilePresenter {
     pub id: Uuid,
@@ -18,8 +27,13 @@ pub struct FilePresenter {
     pub name: String,
     pub visibility: FileVisibility,
     pub parent_folders: Vec<FolderPresenter>,
-    pub url: String,
-    pub preview_url: String,
+    pub url: Url,
+}
+
+impl FilePresenter {
+    pub fn variant_url(&self, width: u16, height: u16, fill: bool) -> Url {
+        file_variant_url(&self.url, width, height, fill)
+    }
 }
 
 #[cfg(feature = "server")]
@@ -34,22 +48,20 @@ impl AsyncInto<FilePresenter> for File<'_> {
                 self.parent_folders().await.iter().map(|folder| folder.async_into()),
             )
             .await,
-            url: self.url(),
-            preview_url: self.preview_url(),
+            url: self.url().await,
         }
     }
 }
 
-impl From<&FolderItemPresenter> for FilePresenter {
-    fn from(folder_item: &FolderItemPresenter) -> Self {
-        FilePresenter {
+impl From<FolderItemPresenter> for FilePresenter {
+    fn from(folder_item: FolderItemPresenter) -> Self {
+        Self {
             id: folder_item.id,
             parent_folder_id: folder_item.parent_folder_id,
             name: folder_item.name.clone(),
             visibility: folder_item.visibility,
             parent_folders: vec![],
-            url: folder_item.url.clone().unwrap(),
-            preview_url: folder_item.preview_url.clone().unwrap(),
+            url: folder_item.url.clone().expect("Could not get file url"),
         }
     }
 }
@@ -61,9 +73,14 @@ pub struct FolderItemPresenter {
     pub is_file: bool,
     pub name: String,
     pub visibility: FileVisibility,
-    pub url: Option<String>,
-    pub preview_url: Option<String>,
+    pub url: Option<Url>,
     pub parent_folders: Vec<FolderPresenter>,
+}
+
+impl FolderItemPresenter {
+    pub fn variant_url(&self, width: u16, height: u16, fill: bool) -> Option<Url> {
+        self.url.as_ref().map(|url| file_variant_url(url, width, height, fill))
+    }
 }
 
 #[cfg(feature = "server")]
@@ -75,8 +92,7 @@ impl AsyncInto<FolderItemPresenter> for FolderItem<'_> {
             is_file: self.is_file,
             name: self.name.to_string(),
             visibility: self.visibility,
-            url: self.url(),
-            preview_url: self.preview_url(),
+            url: self.url().await,
             parent_folders: futures::future::join_all(
                 self.parent_folders().await.iter().map(|folder| folder.async_into()),
             )
@@ -94,7 +110,6 @@ impl From<&FilePresenter> for FolderItemPresenter {
             name: file.name.to_string(),
             visibility: file.visibility,
             url: Some(file.url.clone()),
-            preview_url: Some(file.preview_url.clone()),
             parent_folders: file.parent_folders.clone(),
         }
     }
@@ -115,7 +130,6 @@ impl From<FolderPresenter> for FolderItemPresenter {
             name: folder.name,
             visibility: folder.visibility,
             url: None,
-            preview_url: None,
             parent_folders: folder.parent_folders,
         }
     }
@@ -155,12 +169,6 @@ impl From<&FolderItemPresenter> for FolderPresenter {
             visibility: folder_item.visibility,
             parent_folders: vec![],
         }
-    }
-}
-
-impl From<FolderItemPresenter> for FolderPresenter {
-    fn from(folder_item: FolderItemPresenter) -> Self {
-        Self::from(&folder_item)
     }
 }
 
