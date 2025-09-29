@@ -11,7 +11,7 @@ chrono = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
-axum = { version = "0.8.4", optional = true }
+axum = { version = "0.8.5", optional = true }
 axum-extra = { version = "0.10.1", features = [
     "typed-header",
 ], optional = true }
