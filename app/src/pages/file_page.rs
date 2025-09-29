@@ -1,7 +1,9 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::components::{FolderItemMenu, PageTitle};
+use sdk::components::PageTitle;
+
+use crate::components::FolderItemMenu;
 use crate::hooks::use_resource_with_loader;
 use crate::routes::Routes;
 use crate::server_fns::get_file;

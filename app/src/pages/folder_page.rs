@@ -1,7 +1,9 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::components::{FileManager, PageTitle};
+use sdk::components::PageTitle;
+
+use crate::components::FileManager;
 use crate::routes::Routes;
 use crate::server_fns::get_folder;
 use crate::use_resource_with_loader;

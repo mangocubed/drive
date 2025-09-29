@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
 use serde_json::Value;
 
-use crate::components::Modal;
+use sdk::components::Modal;
+
 use crate::hooks::{FormStatus, use_form_context};
 use crate::icons::{EyeMini, EyeSlashMini};
 

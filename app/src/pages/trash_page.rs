@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 
-use crate::components::{ConfirmationModal, PageTitle};
+use sdk::components::{ConfirmationModal, PageTitle};
+
 use crate::hooks::{use_current_user, use_resource_with_loader};
 use crate::icons::{EllipsisVerticalOutline, FolderOutline};
 use crate::presenters::FolderItemPresenter;

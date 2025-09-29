@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
 use serde_json::Value;
 
-use crate::components::PageTitle;
+use sdk::components::PageTitle;
+
 use crate::constants::{PRIVACY_URL, TERMS_URL};
 use crate::forms::{Form, FormSuccessModal, PasswordField, SelectField, TextField};
 use crate::hooks::{use_current_user, use_form_provider};

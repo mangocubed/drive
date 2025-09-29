@@ -1,5 +1,6 @@
-use dioxus::core::{DynamicNode, Template, TemplateNode};
 use dioxus::prelude::*;
+
+use sdk::components::ConfirmationModal;
 
 use crate::components::modals::RenameModal;
 use crate::icons::*;
@@ -13,7 +14,7 @@ mod file_manager;
 mod modals;
 
 pub use file_manager::FileManager;
-pub use modals::{AboutModal, ConfirmationModal, Modal, SubscriptionModal};
+pub use modals::{AboutModal, SubscriptionModal};
 
 #[cfg(feature = "web")]
 #[component]
@@ -273,49 +274,5 @@ pub fn Brand() -> Element {
                 div { class: "text-sm opacity-70 self-start", "(dev)" }
             }
         }
-    }
-}
-
-#[component]
-pub fn PageTitle(children: Element) -> Element {
-    let app_title = use_server_cached(|| {
-        let app_title = dioxus::cli_config::app_title().unwrap_or("Mango³ Drive".to_owned());
-
-        if cfg!(debug_assertions) {
-            app_title + " (dev)"
-        } else {
-            app_title
-        }
-    });
-
-    let vnode = children?;
-    let page_title = match vnode.template {
-        Template {
-            roots: &[TemplateNode::Text { text }],
-            node_paths: &[],
-            attr_paths: &[],
-            ..
-        } => text.to_string(),
-        Template {
-            roots: &[TemplateNode::Dynamic { id }],
-            node_paths: &[&[0]],
-            attr_paths: &[],
-            ..
-        } => {
-            let node = &vnode.dynamic_nodes[id];
-            match node {
-                DynamicNode::Text(text) => text.value.clone(),
-                _ => {
-                    return rsx!();
-                }
-            }
-        }
-        _ => {
-            return rsx!();
-        }
-    };
-
-    rsx! {
-        document::Title { "{page_title} | {app_title}" }
     }
 }
