@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 
+use sdk::components::Modal;
+
 use crate::components::Brand;
 use crate::constants::{COPYRIGHT, PRIVACY_URL, SOURCE_CODE_URL, TERMS_URL};
 use crate::forms::{Form, TextField};
@@ -50,35 +52,6 @@ pub fn AboutModal(is_open: Signal<bool>) -> Element {
             }
 
             div { class: "opacity-75", {COPYRIGHT} }
-        }
-    }
-}
-
-#[component]
-pub fn ConfirmationModal(children: Element, is_open: Signal<bool>, on_accept: Callback) -> Element {
-    rsx! {
-        Modal { is_closable: false, is_open,
-            div { {children} }
-
-            div { class: "modal-action",
-                button {
-                    class: "btn",
-                    onclick: move |event| {
-                        event.prevent_default();
-                        *is_open.write() = false;
-                    },
-                    "Cancel"
-                }
-                button {
-                    class: "btn btn-primary",
-                    onclick: move |event| {
-                        event.prevent_default();
-                        *is_open.write() = false;
-                        on_accept.call(());
-                    },
-                    "Accept"
-                }
-            }
         }
     }
 }
@@ -252,39 +225,6 @@ pub fn SubscriptionModal(is_open: Signal<bool>, on_success: Callback<()>) -> Ele
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-#[component]
-pub fn Modal(
-    children: Element,
-    #[props(optional)] class: String,
-    is_open: Signal<bool>,
-    #[props(default = true)] is_closable: bool,
-    #[props(optional)] on_close: Callback<MouseEvent>,
-) -> Element {
-    let on_close = move |event: MouseEvent| {
-        event.prevent_default();
-        *is_open.write() = false;
-        on_close.call(event);
-    };
-
-    rsx! {
-        dialog { class: "modal", class: if is_open() { "modal-open" },
-            if is_closable {
-                button {
-                    class: "btn btn-sm btn-circle btn-ghost absolute right-2 top-2",
-                    onclick: on_close,
-                    "✕"
-                }
-            }
-
-            div { class: format!("modal-box {class}"), {children} }
-
-            if is_closable {
-                div { class: "modal-backdrop", onclick: on_close }
             }
         }
     }

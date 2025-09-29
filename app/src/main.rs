@@ -118,6 +118,10 @@ fn App() -> Element {
     });
 
     rsx! {
+        document::Meta {
+            name: "viewport",
+            content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
+        }
         document::Link { rel: "icon", href: FAVICON_ICO }
         document::Link { rel: "stylesheet", href: STYLE_CSS }
 

@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 
-use crate::components::{FileManager, PageTitle};
+use sdk::components::PageTitle;
+
+use crate::components::FileManager;
 
 #[component]
 pub fn HomePage() -> Element {

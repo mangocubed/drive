@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 
+use sdk::components::{Footer, Navbar, NavbarStart};
+
 use crate::components::Brand;
 use crate::constants::{COPYRIGHT, PRIVACY_URL, SOURCE_CODE_URL, TERMS_URL};
 use crate::routes::Routes;
@@ -19,16 +21,15 @@ pub fn GuestLayout() -> Element {
 
     rsx! {
         div { class: "flex flex-col min-h-screen",
-            div { class: "navbar bg-base-300 shadow-md px-3",
-                div { class: "navbar-start",
+            Navbar {
+                NavbarStart {
                     Link { class: "flex gap-2 items-center", to: Routes::login(), Brand {} }
                 }
             }
 
             main { class: "main grow", Outlet::<Routes> {} }
 
-            footer { class: "footer md:footer-horizontal bg-base-200 p-10",
-
+            Footer {
                 aside { class: "opacity-75",
                     p {
                         "Version: "

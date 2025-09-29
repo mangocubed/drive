@@ -2,6 +2,8 @@ use dioxus::prelude::*;
 use serde_json::Value;
 use uuid::Uuid;
 
+use sdk::components::Modal;
+
 use drive_core::enums::FileVisibility;
 use drive_core::inputs::FileInput;
 
@@ -19,8 +21,6 @@ use crate::server_fns::{
 };
 use crate::signals::MOVE_FOLDER_ITEM;
 use crate::utils::{can_be_moved, run_with_loader};
-
-use super::Modal;
 
 const FILE_VISIBILITY_OPTIONS: [(&str, FileVisibility); 4] = [
     ("Private", FileVisibility::Private),

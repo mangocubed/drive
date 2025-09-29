@@ -1,6 +1,8 @@
 use dioxus::prelude::*;
 
-use crate::components::{PageTitle, SubscriptionModal};
+use sdk::components::PageTitle;
+
+use crate::components::SubscriptionModal;
 use crate::hooks::use_current_user;
 
 #[component]

@@ -1,7 +1,8 @@
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::components::PageTitle;
+use sdk::components::PageTitle;
+
 use crate::hooks::use_current_user;
 use crate::routes::Routes;
 use crate::server_fns::attempt_to_confirm_plan_checkout;

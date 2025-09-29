@@ -1,13 +1,12 @@
 {
+    "private": true,
     "scripts": {
         "build": "npx @tailwindcss/cli --minify --input ./app/style.css --output ./app/assets/style.css",
         "watch": "npx @tailwindcss/cli --minify --input ./app/style.css --output ./app/assets/style.css --watch",
         "end2end": "npx playwright test --config app/playwright.config.js"
     },
     "dependencies": {
-        "@tailwindcss/cli": "^4.1.13",
-        "daisyui": "^5.1.25",
-        "tailwindcss": "^4.1.13"
+        "sdk": "github:mangocubed/sdk#v0.0.0-alpha.1"
     },
     "devDependencies": {
         "@faker-js/faker": "^10.0.0",
