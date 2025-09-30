@@ -5,11 +5,11 @@
         "watch": "npx @tailwindcss/cli --minify --input ./app/style.css --output ./app/assets/style.css --watch",
         "end2end": "npx playwright test --config app/playwright.config.js"
     },
-    "dependencies": {
-        "sdk": "github:mangocubed/sdk#v0.0.0-alpha.1"
-    },
     "devDependencies": {
         "@faker-js/faker": "^10.0.0",
         "@playwright/test": "^1.55.1"
+    },
+    "dependencies": {
+        "sdk": "github:mangocubed/sdk#v0.0.0-alpha.2"
     }
 }

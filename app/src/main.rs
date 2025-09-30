@@ -7,6 +7,8 @@ use axum::response::IntoResponse;
 #[cfg(feature = "server")]
 use uuid::Uuid;
 
+use sdk::components::{AppProvider, LoadingOverlay};
+
 mod components;
 mod constants;
 mod forms;
@@ -26,8 +28,6 @@ use server_fns::get_current_user;
 use utils::loader_is_active;
 
 const FAVICON_ICO: Asset = asset!("assets/favicon.ico");
-const ICON_SVG: Asset = asset!("assets/icon.svg");
-const LOGO_SVG: Asset = asset!("assets/logo.svg");
 const STYLE_CSS: Asset = asset!("assets/style.css");
 
 #[cfg(feature = "server")]
@@ -125,20 +125,13 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON_ICO }
         document::Link { rel: "stylesheet", href: STYLE_CSS }
 
-        Router::<Routes> {}
+        AppProvider { Router::<Routes> {} }
 
         div {
             class: "loading loading-spinner loading-xl fixed bottom-3 right-3",
             class: if !loader_is_active() { "hidden" },
         }
 
-        div {
-            class: "loading-overlay",
-            class: if !app_is_loading() { "loading-overlay-hidden" },
-            figure {
-                div { class: "loading-overlay-pulse" }
-                img { src: ICON_SVG }
-            }
-        }
+        LoadingOverlay { is_visible: app_is_loading }
     }
 }
