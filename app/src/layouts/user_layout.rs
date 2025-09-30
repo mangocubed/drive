@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 
-use sdk::components::{ConfirmationModal, Navbar, NavbarEnd, NavbarStart};
+use sdk::components::{Brand, ConfirmationModal, Navbar, NavbarEnd, NavbarStart};
 
-use crate::components::{AboutModal, Brand};
+use crate::components::AboutModal;
 use crate::hooks::use_current_user;
 use crate::icons::{ChevronDownMini, CloudOutline, HomeOutline, InformationCircleOutline, TrashOutline};
 use crate::routes::Routes;
@@ -26,7 +26,9 @@ pub fn UserLayout() -> Element {
         if let Some(Some(user)) = &*current_user.read() {
             Navbar {
                 NavbarStart {
-                    Link { class: "flex gap-2 items-center", to: Routes::home(), Brand {} }
+                    Link { class: "flex gap-2 items-center", to: Routes::home(),
+                        Brand { "Drive" }
+                    }
                 }
 
                 NavbarEnd {

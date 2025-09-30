@@ -1,8 +1,7 @@
 use dioxus::prelude::*;
 
-use sdk::components::{Footer, Navbar, NavbarStart};
+use sdk::components::{Brand, Footer, Navbar, NavbarStart};
 
-use crate::components::Brand;
 use crate::constants::{COPYRIGHT, PRIVACY_URL, SOURCE_CODE_URL, TERMS_URL};
 use crate::routes::Routes;
 use crate::server_fns::is_logged_in;
@@ -23,7 +22,9 @@ pub fn GuestLayout() -> Element {
         div { class: "flex flex-col min-h-screen",
             Navbar {
                 NavbarStart {
-                    Link { class: "flex gap-2 items-center", to: Routes::login(), Brand {} }
+                    Link { class: "flex gap-2 items-center", to: Routes::login(),
+                        Brand { "Drive" }
+                    }
                 }
             }
 

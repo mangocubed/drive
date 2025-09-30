@@ -7,8 +7,8 @@ use crate::icons::*;
 use crate::presenters::{FilePresenter, FolderItemPresenter};
 use crate::server_fns::*;
 use crate::signals::MOVE_FOLDER_ITEM;
+use crate::use_resource_with_loader;
 use crate::utils::{can_be_moved, run_with_loader};
-use crate::{ICON_SVG, LOGO_SVG, use_resource_with_loader};
 
 mod file_manager;
 mod modals;
@@ -256,23 +256,6 @@ pub fn LoggedIn(children: Element) -> Element {
     rsx! {
         if let Some(Ok(true)) = is_logged_in() {
             {children}
-        }
-    }
-}
-
-#[component]
-pub fn Brand() -> Element {
-    rsx! {
-        div { class: "flex gap-2 items-center",
-            img { class: "h-[36px] sm:hidden", src: ICON_SVG }
-
-            img { class: "h-[36px] max-sm:hidden", src: LOGO_SVG }
-
-            div { class: "text-3xl font-bold opacity-80", "Drive" }
-
-            if cfg!(debug_assertions) {
-                div { class: "text-sm opacity-70 self-start", "(dev)" }
-            }
         }
     }
 }

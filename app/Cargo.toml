@@ -35,7 +35,7 @@ web-sys = { version = "0.3.81", features = [
     "Storage",
 ], optional = true }
 drive-core = { workspace = true }
-sdk = { git = "https://github.com/mangocubed/sdk.git", tag = "v0.0.0-alpha.1" }
+sdk = { git = "https://github.com/mangocubed/sdk.git", tag = "v0.0.0-alpha.2" }
 
 [features]
 default = ["web"]
