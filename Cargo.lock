@@ -3589,7 +3589,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
- "windows-targets 0.53.3",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -5399,10 +5399,10 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sdk"
-version = "0.0.0-alpha.2"
-source = "git+https://github.com/mangocubed/sdk.git?tag=v0.0.0-alpha.2#c5c3de634406d6072853ac9cc06a5432d92de3f8"
+version = "0.0.0-alpha.5"
+source = "git+https://github.com/mangocubed/sdk.git?tag=v0.0.0-alpha.5#12643b4e38677428d069e6ced341d04d449e0d44"
 dependencies = [
- "dioxus",
+ "serde",
 ]
 
 [[package]]
@@ -7442,7 +7442,7 @@ version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0978bf7171b3d90bac376700cb56d606feb40f251a475a5d6634613564460b22"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
