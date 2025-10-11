@@ -1,10 +1,13 @@
 import { test, expect } from "@playwright/test";
-import { faker } from "@faker-js/faker/locale/en";
 import path from "path";
-import { loginAndGoToHome, waitForLoadingOverlay } from "./shared_expects";
+import { waitForSplash, testOptions } from "./shared_expects";
+
+test.use(testOptions());
 
 test("should upload files", async ({ page }) => {
-    await loginAndGoToHome(page);
+    await page.goto("/");
+
+    await waitForSplash(page);
 
     const fileChooserPromise = page.waitForEvent("filechooser");
 

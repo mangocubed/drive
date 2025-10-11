@@ -1,24 +1,25 @@
 use dioxus::prelude::*;
 
-use sdk::components::{Brand, ConfirmationModal, Navbar, NavbarEnd, NavbarStart};
+use sdk::auth_client::{auth_client_authorize_url, auth_client_provider_url};
+use sdk::components::{Brand, Navbar, NavbarEnd, NavbarStart};
 
 use crate::components::AboutModal;
 use crate::hooks::use_current_user;
 use crate::icons::{ChevronDownMini, CloudOutline, HomeOutline, InformationCircleOutline, TrashOutline};
+use crate::local_data::set_redirect_to;
 use crate::routes::Routes;
-use crate::server_fns::attempt_to_logout;
-use crate::utils::{DataStorageTrait, data_storage};
 
 #[component]
 pub fn UserLayout() -> Element {
-    let mut show_logout_confirmation = use_signal(|| false);
+    let router = router();
     let mut show_about = use_signal(|| false);
-    let navigator = use_navigator();
-    let mut current_user = use_current_user();
+    let current_user = use_current_user();
 
     use_effect(move || {
         if let Some(None) = *current_user.read() {
-            navigator.push(Routes::login());
+            set_redirect_to(&router.full_route_string());
+
+            sdk::open_external_url(auth_client_authorize_url());
         }
     });
 
@@ -26,7 +27,7 @@ pub fn UserLayout() -> Element {
         if let Some(Some(user)) = &*current_user.read() {
             Navbar {
                 NavbarStart {
-                    Link { class: "flex gap-2 items-center", to: Routes::home(),
+                    Link { to: Routes::home(),
                         Brand { "Drive" }
                     }
                 }
@@ -49,29 +50,13 @@ pub fn UserLayout() -> Element {
                             class: "menu menu-sm dropdown-content bg-base-200 rounded-box shadow mt-3 p-2 w-max z-1",
                             tabindex: 0,
                             li {
-                                a {
-                                    onclick: move |_| {
-                                        *show_logout_confirmation.write() = true;
-                                    },
-                                    "Logout"
+                                a { href: auth_client_provider_url().to_string(),
+                                    "My account"
                                 }
                             }
                         }
                     }
-
-                    ConfirmationModal {
-                        is_open: show_logout_confirmation,
-                        on_accept: move |()| {
-                            async move {
-                                if attempt_to_logout().await.is_ok() {
-                                    data_storage().delete_access_token();
-                                    navigator.push(Routes::login());
-                                    current_user.restart();
-                                }
-                            }
-                        },
-                        "Are you sure you want to logout?"
-                    }
+                
                 }
             }
 

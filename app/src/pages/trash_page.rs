@@ -1,14 +1,15 @@
 use dioxus::prelude::*;
 
 use sdk::components::{ConfirmationModal, PageTitle};
+use sdk::hooks::use_resource_with_loader;
+use sdk::{loader_is_active, run_with_loader};
 
-use crate::hooks::{use_current_user, use_resource_with_loader};
+use crate::hooks::use_current_user;
 use crate::icons::{EllipsisVerticalOutline, FolderOutline};
 use crate::presenters::FolderItemPresenter;
 use crate::server_fns::{
     attempt_to_empty_trash, attempt_to_restore_file, attempt_to_restore_folder, get_all_trash_items,
 };
-use crate::utils::{loader_is_active, run_with_loader};
 
 #[component]
 pub fn TrashItemMenu(trash_item: FolderItemPresenter, #[props(into)] on_restore: Callback) -> Element {
@@ -33,13 +34,13 @@ pub fn TrashItemMenu(trash_item: FolderItemPresenter, #[props(into)] on_restore:
                                 move |_| async move {
                                     if trash_item.is_file {
                                         let _ = run_with_loader(
-                                                "restore-file".to_owned(),
+                                                "restore-file",
                                                 move || attempt_to_restore_file(id),
                                             )
                                             .await;
                                     } else {
                                         let _ = run_with_loader(
-                                                "restore-folder".to_owned(),
+                                                "restore-folder",
                                                 move || attempt_to_restore_folder(id),
                                             )
                                             .await;
@@ -58,7 +59,7 @@ pub fn TrashItemMenu(trash_item: FolderItemPresenter, #[props(into)] on_restore:
 
 #[component]
 pub fn TrashPage() -> Element {
-    let mut all_trash_items = use_resource_with_loader("trash-items".to_owned(), get_all_trash_items);
+    let mut all_trash_items = use_resource_with_loader("trash-items", get_all_trash_items);
     let mut current_user = use_current_user();
     let trash_items_count = use_memo(move || {
         all_trash_items
@@ -126,7 +127,7 @@ pub fn TrashPage() -> Element {
                 ConfirmationModal {
                     is_open: show_empty_confirmation,
                     on_accept: move |_| async move {
-                        let _ = run_with_loader("empty-trash".to_owned(), attempt_to_empty_trash).await;
+                        let _ = run_with_loader("empty-trash", attempt_to_empty_trash).await;
                         current_user.restart();
                         all_trash_items.restart();
                     },

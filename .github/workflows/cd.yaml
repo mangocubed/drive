@@ -32,6 +32,8 @@ jobs:
               env:
                   APP_SERVER_URL: ${{ vars.APP_SERVER_URL }}
                   APP_TOKEN: ${{ secrets.APP_TOKEN }}
+                  AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+                  AUTH_CLIENT_PROVIDER_URL: ${{ vars.AUTH_CLIENT_PROVIDER_URL }}
             - uses: actions/upload-artifact@v4
               with:
                   name: drive_app_build
@@ -53,7 +55,7 @@ jobs:
         steps:
             - uses: actions/checkout@v5
             - uses: ./.github/actions/setup-dioxus
-            - run: cargo build --bin drive-cli --release
+            - run: cargo build --package drive-cli --release
             - uses: actions/upload-artifact@v4
               with:
                   name: drive_cli_build

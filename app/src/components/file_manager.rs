@@ -2,14 +2,15 @@ use dioxus::prelude::*;
 use serde_json::Value;
 use uuid::Uuid;
 
-use sdk::components::Modal;
+use sdk::components::{Form, FormSuccessModal, Modal, SelectField, TextField};
+use sdk::hooks::{use_form_provider, use_resource_with_loader};
+use sdk::run_with_loader;
 
 use drive_core::enums::FileVisibility;
 use drive_core::inputs::FileInput;
 
 use crate::components::FolderItemMenu;
-use crate::forms::{Form, FormSuccessModal, SelectField, TextField};
-use crate::hooks::{use_current_user, use_form_provider, use_resource_with_loader};
+use crate::hooks::use_current_user;
 use crate::icons::{
     ArrowUpTrayOutline, CheckCircleOutline, ExclamationTriangleOutline, FolderOutline, FolderPlusOutline, MoveOutline,
 };
@@ -20,7 +21,7 @@ use crate::server_fns::{
     get_all_folder_items,
 };
 use crate::signals::MOVE_FOLDER_ITEM;
-use crate::utils::{can_be_moved, run_with_loader};
+use crate::utils::can_be_moved;
 
 const FILE_VISIBILITY_OPTIONS: [(&str, FileVisibility); 4] = [
     ("Private", FileVisibility::Private),
@@ -38,8 +39,7 @@ pub fn FileManager(
     let folder_id = use_memo(move || folder().map(|folder| folder.id));
     let mut show_new_folder_modal = use_signal(|| false);
     let mut pending_files = use_signal(Vec::new);
-    let mut all_folder_items =
-        use_resource_with_loader("folder-items".to_owned(), move || get_all_folder_items(folder_id()));
+    let mut all_folder_items = use_resource_with_loader("folder-items", move || get_all_folder_items(folder_id()));
     let mut current_user = use_current_user();
 
     rsx! {
@@ -187,7 +187,7 @@ pub fn FileManager(
                                 async move {
                                     let result = if move_folder_item_is_file {
                                         run_with_loader(
-                                                "move-file".to_owned(),
+                                                "move-file",
                                                 move || attempt_to_move_file(
                                                     move_folder_item_id,
                                                     folder_id(),
@@ -196,7 +196,7 @@ pub fn FileManager(
                                             .await
                                     } else {
                                         run_with_loader(
-                                                "move-folder".to_owned(),
+                                                "move-folder",
                                                 move || attempt_to_move_folder(
                                                     move_folder_item_id,
                                                     folder_id(),
@@ -226,7 +226,7 @@ fn NewFolderModal(
     on_close: Callback<Value>,
     parent_folder_id: ReadSignal<Option<Uuid>>,
 ) -> Element {
-    use_form_provider("create-folder".to_owned(), attempt_to_create_folder);
+    use_form_provider("create-folder", attempt_to_create_folder);
 
     rsx! {
         FormSuccessModal { on_close }

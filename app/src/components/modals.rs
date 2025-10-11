@@ -1,16 +1,15 @@
 use dioxus::prelude::*;
 
-use sdk::components::{Brand, Modal};
+use sdk::components::{Brand, Form, Modal, TextField};
+use sdk::constants::{COPYRIGHT, PRIVACY_URL, TERMS_URL};
+use sdk::hooks::{use_form_provider, use_resource_with_loader};
+use sdk::run_with_loader;
 
-use crate::constants::{COPYRIGHT, PRIVACY_URL, SOURCE_CODE_URL, TERMS_URL};
-use crate::forms::{Form, TextField};
-use crate::hooks::use_form_provider;
+use crate::constants::SOURCE_CODE_URL;
 use crate::presenters::FolderItemPresenter;
 use crate::server_fns::{
     attempt_to_create_plan_checkout, attempt_to_rename_file, attempt_to_rename_folder, get_all_available_plans,
 };
-use crate::use_resource_with_loader;
-use crate::utils::run_with_loader;
 
 #[component]
 pub fn AboutModal(is_open: Signal<bool>) -> Element {
@@ -61,7 +60,7 @@ pub fn RenameModal(
     #[props(into)] folder_item: FolderItemPresenter,
     on_success: Callback,
 ) -> Element {
-    let mut form_provider = use_form_provider("rename".to_owned(), move |input| async move {
+    let mut form_provider = use_form_provider("rename", move |input| async move {
         if folder_item.is_file {
             attempt_to_rename_file(input).await
         } else {
@@ -114,12 +113,9 @@ pub fn RenameModal(
 
 #[component]
 pub fn SubscriptionModal(is_open: Signal<bool>, on_success: Callback<()>) -> Element {
-    let plans = use_resource_with_loader("available-plans".to_owned(), get_all_available_plans);
+    let plans = use_resource_with_loader("available-plans", get_all_available_plans);
     let mut selected_plan_id = use_signal(|| None);
     let mut is_yearly = use_signal(|| false);
-
-    #[cfg(feature = "web")]
-    let navigator = use_navigator();
 
     rsx! {
         Modal { class: "max-w-300", is_open,
@@ -192,22 +188,13 @@ pub fn SubscriptionModal(is_open: Signal<bool>, on_success: Callback<()>) -> Ele
                                                 *selected_plan_id.write() = Some(plan_id);
 
                                                 let result = run_with_loader(
-
-                                                        "create-plan-checkout".to_owned(),
+                                                        "create-plan-checkout",
                                                         move || attempt_to_create_plan_checkout(plan_id, is_yearly()),
                                                     )
                                                     .await;
-                                                #[allow(unused_variables)]
+
                                                 if let Ok(checkout_url) = result {
-                                                    #[cfg(feature = "web")] navigator.push(checkout_url.to_string());
-                                                    #[cfg(feature = "desktop")]
-                                                    let _ = dioxus::desktop::use_window()
-                                                        .webview
-                                                        .load_url(checkout_url.as_ref());
-                                                    #[cfg(feature = "mobile")]
-                                                    let _ = dioxus::mobile::use_window()
-                                                        .webview
-                                                        .load_url(checkout_url.as_ref());
+                                                    sdk::open_external_url(checkout_url);
                                                 } else {
                                                     *selected_plan_id.write() = None;
                                                 }
