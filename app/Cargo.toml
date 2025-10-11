@@ -12,7 +12,7 @@ sdk = { workspace = true, features = ["build"] }
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
-axum = { version = "0.8.5", optional = true }
+axum = { version = "0.8.6", optional = true }
 axum-extra = { version = "0.10.3", features = [
     "typed-header",
 ], optional = true }
