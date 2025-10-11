@@ -1,14 +1,15 @@
 use dioxus::prelude::*;
 
 use sdk::components::ConfirmationModal;
+use sdk::hooks::use_resource_with_loader;
+use sdk::run_with_loader;
 
 use crate::components::modals::RenameModal;
 use crate::icons::*;
 use crate::presenters::{FilePresenter, FolderItemPresenter};
 use crate::server_fns::*;
 use crate::signals::MOVE_FOLDER_ITEM;
-use crate::use_resource_with_loader;
-use crate::utils::{can_be_moved, run_with_loader};
+use crate::utils::can_be_moved;
 
 mod file_manager;
 mod modals;
@@ -38,15 +39,11 @@ fn DownloadLink(#[props(into)] file: FilePresenter) -> Element {
         a {
             onclick: move |_| {
                 async move {
-                    let result = run_with_loader(
-                            "get-file-url".to_owned(),
-                            move || get_file_url(file.id),
-                        )
-                        .await;
 
+                    let result = run_with_loader("get-file-url", move || get_file_url(file.id))
+                        .await;
                     if let Ok(mut file_url) = result {
                         file_url.set_query(Some("download=true"));
-
                         *download_url.write() = Some(file_url);
                     }
                 }
@@ -77,20 +74,15 @@ fn DownloadLink(#[props(into)] file: FilePresenter) -> Element {
         a {
             onclick: move |_| {
                 async move {
-                    let result = run_with_loader(
-                            "get-file-url".to_owned(),
-                            move || get_file_url(file.id),
-                        )
-                        .await;
 
+                    let result = run_with_loader("get-file-url", move || get_file_url(file.id))
+                        .await;
                     if let Ok(mut file_url) = result {
                         file_url.set_query(Some("download=true"));
-
                         #[cfg(feature = "desktop")]
                         let _ = dioxus::desktop::use_window()
                             .webview
                             .load_url(file_url.as_ref());
-
                         #[cfg(feature = "mobile")]
                         let _ = dioxus::mobile::use_window().webview.load_url(file_url.as_ref());
                     }
@@ -161,7 +153,7 @@ pub fn FolderItemMenu(#[props(into)] folder_item: FolderItemPresenter, #[props(i
                                     async move {
                                         let result = if move_folder_item_is_file {
                                             run_with_loader(
-                                                    "move-file".to_owned(),
+                                                    "move-file",
                                                     move || attempt_to_move_file(
                                                         move_folder_item_id,
                                                         Some(target_folder_id),
@@ -170,7 +162,7 @@ pub fn FolderItemMenu(#[props(into)] folder_item: FolderItemPresenter, #[props(i
                                                 .await
                                         } else {
                                             run_with_loader(
-                                                    "move-folder".to_owned(),
+                                                    "move-folder",
                                                     move || attempt_to_move_folder(
                                                         move_folder_item_id,
                                                         Some(target_folder_id),
@@ -221,13 +213,13 @@ pub fn FolderItemMenu(#[props(into)] folder_item: FolderItemPresenter, #[props(i
                     async move {
                         let result = if folder_item.is_file {
                             run_with_loader(
-                                    "move-file-to-trash".to_owned(),
+                                    "move-file-to-trash",
                                     move || attempt_to_move_file_to_trash(folder_item_id),
                                 )
                                 .await
                         } else {
                             run_with_loader(
-                                    "move-folder-to-trash".to_owned(),
+                                    "move-folder-to-trash",
                                     move || attempt_to_move_folder_to_trash(folder_item_id),
                                 )
                                 .await
@@ -251,7 +243,7 @@ pub fn FolderItemMenu(#[props(into)] folder_item: FolderItemPresenter, #[props(i
 
 #[component]
 pub fn LoggedIn(children: Element) -> Element {
-    let is_logged_in = use_resource_with_loader("logged-in".to_owned(), is_logged_in);
+    let is_logged_in = use_resource_with_loader("logged-in", is_logged_in);
 
     rsx! {
         if let Some(Ok(true)) = is_logged_in() {

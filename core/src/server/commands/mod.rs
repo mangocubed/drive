@@ -1,6 +1,5 @@
-use argon2::password_hash::SaltString;
-use argon2::password_hash::rand_core::OsRng;
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use chrono::{DateTime, Utc};
+
 use bytesize::ByteSize;
 use rand::distr::Alphanumeric;
 use rand::{Rng, rng};
@@ -8,56 +7,47 @@ use strum::IntoEnumIterator;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
+use sdk::auth_client::{Auth, auth_client};
+use sdk::constants::{ERROR_ALREADY_EXISTS, ERROR_IS_INVALID};
+
 use crate::enums::FileVisibility;
-use crate::inputs::{FolderInput, LoginInput};
-use crate::server::config::{APP_CONFIG, STORAGE_CONFIG};
+use crate::inputs::FolderInput;
+use crate::server::config::STORAGE_CONFIG;
 
-use super::constants::*;
 use super::db_pool;
-use super::models::{File, Folder, User};
+use super::models::{File, Folder, Session, User};
 
-mod access_token_commands;
 mod file_commands;
 mod folder_commands;
 mod folder_item_commands;
 mod plan_commands;
+mod session_commands;
 mod trash_commands;
 mod user_commands;
 
-pub use access_token_commands::*;
 pub use file_commands::*;
 pub use folder_commands::*;
 pub use folder_item_commands::*;
 pub use plan_commands::*;
+pub use session_commands::*;
 pub use trash_commands::*;
 pub use user_commands::*;
 
-pub async fn authenticate_user<'a>(input: &LoginInput) -> Result<User<'a>, ValidationErrors> {
-    input.validate()?;
+pub async fn confirm_authorization(token: &str, expires_at: DateTime<Utc>) -> anyhow::Result<Session<'_>> {
+    let auth = Auth::new(token, expires_at, None);
 
-    let db_pool = db_pool().await;
-
-    let user = sqlx::query_as!(
-        User,
-        "SELECT * FROM users WHERE disabled_at IS NULL AND (LOWER(username) = $1 OR LOWER(email) = $1)
-        LIMIT 1",
-        input.username_or_email.to_lowercase()
-    )
-    .fetch_one(db_pool)
-    .await
-    .map_err(|_| ValidationErrors::new())?;
-
-    if user.verify_password(&input.password) {
-        Ok(user)
-    } else {
-        Err(ValidationErrors::new())
+    if auth.is_expired() {
+        return Err(anyhow::anyhow!("Authorization is expired"));
     }
-}
 
-fn encrypt_password(value: &str) -> String {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    argon2.hash_password(value.as_bytes(), &salt).unwrap().to_string()
+    let auth_client = auth_client();
+
+    let (user_info, refreshed_auth) =
+        futures::future::try_join(auth_client.user_info(&auth), auth_client.refresh_auth(&auth)).await?;
+
+    let user = insert_or_update_user(&user_info).await?;
+
+    Ok(insert_session(&user, &refreshed_auth).await?)
 }
 
 pub async fn enable_user(user: &User<'_>) -> sqlx::Result<()> {
@@ -249,20 +239,6 @@ pub async fn insert_folder<'a>(user: &User<'_>, input: &FolderInput) -> Result<F
     .map_err(|_| ValidationErrors::new())
 }
 
-pub fn verify_app_token(app_token: &str) -> bool {
-    app_token == APP_CONFIG.token || APP_CONFIG.old_tokens.contains(&app_token.to_owned())
-}
-
-pub(crate) fn verify_password(encrypted_password: &str, password: &str) -> bool {
-    let argon2 = Argon2::default();
-
-    let Ok(password_hash) = PasswordHash::new(encrypted_password) else {
-        return false;
-    };
-
-    argon2.verify_password(password.as_bytes(), &password_hash).is_ok()
-}
-
 #[cfg(test)]
 mod tests {
     use crate::test_utils::*;
@@ -270,34 +246,8 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn should_authenticate_user() {
-        let password = fake_password();
-        let user = insert_test_user(Some(&password)).await;
-        let input = LoginInput {
-            username_or_email: user.username.to_string(),
-            password: password.clone(),
-        };
-
-        let result = authenticate_user(&input).await;
-
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn should_not_authenticate_user_with_invalid_input() {
-        let input = LoginInput {
-            username_or_email: fake_username(),
-            password: fake_password(),
-        };
-
-        let result = authenticate_user(&input).await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
     async fn should_get_seven_folders_by_user() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
 
         insert_test_folders(7, Some(&user), None).await;
 
@@ -312,7 +262,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_get_seven_folders_by_user_with_parent_folder() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
         let parent_folder = insert_test_folder(Some(&user), None).await;
 
         insert_test_folders(7, Some(&user), Some(&parent_folder)).await;
@@ -328,7 +278,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_get_zero_folders_by_user() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
 
         let result = get_all_folder_items(Some(&user), None).await;
 
@@ -341,7 +291,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_get_folder_by_id() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
         let folder = insert_test_folder(Some(&user), None).await;
 
         let result = get_folder_by_id(folder.id, Some(&user)).await;
@@ -351,7 +301,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_get_folder_by_id_with_invalid_user() {
-        let invalid_user = insert_test_user(None).await;
+        let invalid_user = insert_test_user().await;
         let folder = insert_test_folder(None, None).await;
 
         let result = get_folder_by_id(folder.id, Some(&invalid_user)).await;
@@ -361,7 +311,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_insert_a_folder() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
         let input = FolderInput {
             parent_folder_id: None,
             name: fake_name(),
@@ -381,7 +331,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_insert_a_folder_with_parent_folder() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
         let parent_folder = insert_test_folder(Some(&user), None).await;
         let input = FolderInput {
             parent_folder_id: Some(parent_folder.id),
@@ -402,7 +352,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_insert_a_folder_with_existent_name() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
         let folder = insert_test_folder(Some(&user), None).await;
         let input = FolderInput {
             parent_folder_id: None,
@@ -418,7 +368,7 @@ mod tests {
     #[tokio::test]
     async fn should_not_insert_a_folder_with_invalid_parent_folder() {
         let invalid_parent_folder = insert_test_folder(None, None).await;
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
         let input = FolderInput {
             parent_folder_id: Some(invalid_parent_folder.id),
             name: fake_name(),
@@ -432,7 +382,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_get_used_storage_equal_zero_when_is_empty() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
 
         let used_storage = get_used_space_by_user(&user).await;
 
@@ -441,7 +391,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_get_used_storage_more_than_zero_after_insert() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
 
         insert_test_files(7, Some(&user)).await;
 

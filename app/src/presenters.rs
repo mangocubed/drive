@@ -232,7 +232,7 @@ impl AsyncInto<UserPresenter> for User<'_> {
             id: self.id,
             username: self.username.to_string(),
             display_name: self.display_name.to_string(),
-            initials: self.initials(),
+            initials: self.initials.to_string(),
             total_space_bytes: total_space.as_u64(),
             used_space_bytes: used_space.as_u64(),
             total_space: total_space.to_string(),

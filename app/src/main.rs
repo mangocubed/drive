@@ -7,14 +7,18 @@ use axum::response::IntoResponse;
 #[cfg(feature = "server")]
 use uuid::Uuid;
 
-use sdk::components::{AppProvider, LoadingOverlay};
+use sdk::components::AppProvider;
+use sdk::hooks::use_resource_with_loader;
+
+#[cfg(not(feature = "server"))]
+use sdk::serv_fn::set_serv_fn_header;
 
 mod components;
 mod constants;
-mod forms;
 mod hooks;
 mod icons;
 mod layouts;
+mod local_data;
 mod pages;
 mod presenters;
 mod routes;
@@ -22,10 +26,8 @@ mod server_fns;
 mod signals;
 mod utils;
 
-use hooks::use_resource_with_loader;
 use routes::Routes;
 use server_fns::get_current_user;
-use utils::loader_is_active;
 
 const FAVICON_ICO: Asset = asset!("assets/favicon.ico");
 const STYLE_CSS: Asset = asset!("assets/style.css");
@@ -58,8 +60,15 @@ async fn main() {
 
 #[cfg(not(feature = "server"))]
 fn main() {
+    use crate::constants::HEADER_AUTHORIZATION;
+    use crate::local_data::get_session_token;
+
     #[cfg(not(feature = "web"))]
     dioxus::fullstack::set_server_url(env!("APP_SERVER_URL"));
+
+    if let Some(session_token) = get_session_token() {
+        set_serv_fn_header(HEADER_AUTHORIZATION, &format!("Bearer {session_token}"));
+    }
 
     dioxus::launch(App);
 }
@@ -104,16 +113,14 @@ async fn get_storage_file(Path(key_id): Path<Uuid>, Query(query): Query<FileQuer
 
 #[component]
 fn App() -> Element {
-    let current_user = use_resource_with_loader("current-user".to_owned(), async || {
-        get_current_user().await.ok().flatten()
-    });
-    let mut app_is_loading = use_signal(|| true);
+    let mut is_starting = use_signal(|| true);
+    let current_user = use_resource_with_loader("current-user", async || get_current_user().await.ok().flatten());
 
     use_context_provider(|| current_user);
 
     use_effect(move || {
         if current_user.read().is_some() {
-            app_is_loading.set(false);
+            is_starting.set(false);
         }
     });
 
@@ -125,13 +132,6 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON_ICO }
         document::Link { rel: "stylesheet", href: STYLE_CSS }
 
-        AppProvider { Router::<Routes> {} }
-
-        div {
-            class: "loading loading-spinner loading-xl fixed bottom-3 right-3",
-            class: if !loader_is_active() { "hidden" },
-        }
-
-        LoadingOverlay { is_visible: app_is_loading }
+        AppProvider { is_starting, Router::<Routes> {} }
     }
 }

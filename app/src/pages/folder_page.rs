@@ -10,9 +10,7 @@ use crate::use_resource_with_loader;
 
 #[component]
 pub fn FolderPage(id: ReadSignal<Uuid>) -> Element {
-    let folder = use_resource_with_loader("folder".to_owned(), move || async move {
-        get_folder(id()).await.ok().flatten()
-    });
+    let folder = use_resource_with_loader("folder", move || async move { get_folder(id()).await.ok().flatten() });
     let page_title = use_memo(move || {
         if let Some(Some(folder)) = &*folder.read() {
             let mut title = "Home > ".to_owned();

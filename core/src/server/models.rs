@@ -17,14 +17,6 @@ use crate::server::config::USERS_CONFIG;
 use super::config::STORAGE_CONFIG;
 use super::constants::ALLOWED_FILE_FORMATS;
 
-pub struct AccessToken<'a> {
-    pub id: Uuid,
-    pub user_id: Uuid,
-    pub token: Cow<'a, str>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: Option<DateTime<Utc>>,
-}
-
 pub struct File<'a> {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -300,14 +292,28 @@ impl Plan<'_> {
     }
 }
 
+#[derive(Serialize)]
+pub struct Session<'a> {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub token: Cow<'a, str>,
+    pub mango3_auth_token: Cow<'a, str>,
+    pub mango3_auth_expires_at: DateTime<Utc>,
+    pub mango3_auth_refreshed_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
 #[derive(Clone)]
 pub struct User<'a> {
     pub id: Uuid,
+    pub mango3_user_id: Option<Uuid>,
     pub plan_id: Option<Uuid>,
     pub username: Cow<'a, str>,
     pub email: Cow<'a, str>,
-    pub encrypted_password: Cow<'a, str>,
     pub display_name: Cow<'a, str>,
+    pub initials: Cow<'a, str>,
     pub full_name: Cow<'a, str>,
     pub birthdate: NaiveDate,
     pub language_code: Cow<'a, str>,
@@ -322,14 +328,6 @@ pub struct User<'a> {
 impl User<'_> {
     pub async fn available_space(&self) -> ByteSize {
         self.total_space().await - self.used_space().await
-    }
-
-    pub fn initials(&self) -> String {
-        self.display_name
-            .split_whitespace()
-            .filter_map(|word| word.chars().next())
-            .collect::<String>()
-            .to_uppercase()
     }
 
     #[allow(dead_code)]
@@ -361,9 +359,5 @@ impl User<'_> {
 
     pub async fn used_space(&self) -> ByteSize {
         get_used_space_by_user(self).await
-    }
-
-    pub fn verify_password(&self, password: &str) -> bool {
-        verify_password(&self.encrypted_password, password)
     }
 }

@@ -2,19 +2,16 @@ use dioxus::prelude::*;
 use uuid::Uuid;
 
 use sdk::components::PageTitle;
+use sdk::hooks::use_resource_with_loader;
 
 use crate::components::FolderItemMenu;
-use crate::hooks::use_resource_with_loader;
 use crate::routes::Routes;
 use crate::server_fns::get_file;
 
 #[component]
 pub fn FilePage(id: ReadSignal<Uuid>) -> Element {
     let navigator = use_navigator();
-    let file = use_resource_with_loader(
-        "file".to_owned(),
-        move || async move { get_file(id()).await.ok().flatten() },
-    );
+    let file = use_resource_with_loader("file", move || async move { get_file(id()).await.ok().flatten() });
     let page_title = use_memo(move || {
         if let Some(Some(file)) = &*file.read() {
             let mut title = "Home > ".to_owned();

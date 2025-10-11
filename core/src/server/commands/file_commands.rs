@@ -8,10 +8,13 @@ use url::Url;
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
+use sdk::config::APP_CONFIG;
+use sdk::constants::{ERROR_ALREADY_EXISTS, ERROR_IS_INVALID};
+
 use crate::enums::FileVisibility;
 use crate::inputs::{FileInput, RenameInput};
-use crate::server::config::{APP_CONFIG, STORAGE_CONFIG};
-use crate::server::constants::{ALLOWED_FILE_FORMATS, ERROR_ALREADY_EXISTS, ERROR_IS_INVALID, ERROR_IS_TOO_LARGE};
+use crate::server::config::STORAGE_CONFIG;
+use crate::server::constants::{ALLOWED_FILE_FORMATS, ERROR_IS_TOO_LARGE};
 use crate::server::db_pool;
 use crate::server::models::{File, FileKey, Folder, User};
 
@@ -37,7 +40,9 @@ pub async fn get_file_key_by_id(id: Uuid) -> sqlx::Result<FileKey> {
 
 pub async fn get_file_url(file: &File<'_>) -> anyhow::Result<Url> {
     let file_key = insert_file_key(file).await?;
-    let file_url = APP_CONFIG.server_url.join(&format!("storage/files/{}", file_key.id))?;
+    let file_url = APP_CONFIG
+        .server_url()
+        .join(&format!("storage/files/{}", file_key.id))?;
 
     Ok(file_url)
 }
@@ -198,7 +203,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_insert_a_file() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
         let input = FileInput {
             parent_folder_id: None,
             name: fake_name() + ".jpg",
@@ -219,7 +224,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_insert_an_invalid_file() {
-        let user = insert_test_user(None).await;
+        let user = insert_test_user().await;
         let input = FileInput {
             parent_folder_id: None,
             name: fake_name() + ".jpg",

@@ -1,107 +1,21 @@
-use std::collections::HashSet;
-use std::fmt::Display;
-use std::fs::OpenOptions;
-use std::io::{Read, Write};
+use std::borrow::Cow;
 
-use chrono::{DateTime, Utc};
-use fake::Fake;
-use fake::faker::address::en::CountryCode;
-use fake::faker::chrono::en::DateTimeBefore;
-use fake::faker::internet::en::{FreeEmail, Password, Username};
-use fake::faker::name::en::Name;
-use rand::rng;
+use chrono::Utc;
+use sdk::auth_client::UserInfo;
+use uuid::Uuid;
+
+pub use sdk::test_utils::{fake_auth, fake_birthdate, fake_country_alpha2, fake_email, fake_name, fake_username};
 
 use crate::enums::FileVisibility;
-use crate::inputs::{FileInput, FolderInput, RegisterInput};
-use crate::server::commands::{insert_file, insert_folder, insert_user};
-use crate::server::models::{File, Folder, User};
-
-fn unique_fake<T, F>(prefix: &str, fake_fn: F) -> T
-where
-    F: Fn() -> T,
-    T: Display,
-{
-    let file_path = std::env::temp_dir().join("used_fakes");
-
-    let mut file = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .read(true)
-        .open(&file_path)
-        .expect("Could not open file");
-
-    let mut file_content = String::new();
-
-    let _ = file.read_to_string(&mut file_content);
-
-    let mut lines = file_content
-        .lines()
-        .map(|line| line.to_owned())
-        .collect::<HashSet<String>>();
-
-    if lines.len() > 100 {
-        for line in lines.clone().iter().take(lines.len() - 100) {
-            lines.remove(line);
-        }
-    }
-
-    let _ = file.set_len(0);
-
-    for line in &lines {
-        let _ = file.write_all(format!("{line}\n").as_bytes());
-    }
-
-    let mut fake = fake_fn();
-
-    while !lines.insert(format!("{prefix}_{fake}")) {
-        fake = fake_fn();
-    }
-
-    let _ = file.write_all(format!("{prefix}_{fake}\n").as_bytes());
-
-    fake
-}
-
-pub fn fake_birthdate() -> String {
-    DateTimeBefore(Utc::now())
-        .fake::<DateTime<Utc>>()
-        .date_naive()
-        .to_string()
-}
-
-pub fn fake_country_alpha2() -> String {
-    CountryCode().fake()
-}
-
-pub fn fake_email() -> String {
-    unique_fake("email", || FreeEmail().fake_with_rng(&mut rng()))
-}
-
-pub fn fake_password() -> String {
-    Password(6..128).fake()
-}
-
-pub fn fake_username() -> String {
-    unique_fake("username", || {
-        let mut username: String = Username().fake_with_rng(&mut rng());
-        username.truncate(16);
-        username
-    })
-}
-
-pub fn fake_name() -> String {
-    unique_fake("name", || {
-        let mut name: String = Name().fake_with_rng(&mut rng());
-        name.truncate(256);
-        name
-    })
-}
+use crate::inputs::{FileInput, FolderInput};
+use crate::server::commands::{insert_file, insert_folder, insert_or_update_user, insert_session};
+use crate::server::models::{File, Folder, Session, User};
 
 pub async fn insert_test_file<'a>(user: Option<&User<'_>>) -> File<'a> {
     let user = if let Some(user) = user {
         user
     } else {
-        &insert_test_user(None).await
+        &insert_test_user().await
     };
 
     let input = FileInput {
@@ -110,14 +24,14 @@ pub async fn insert_test_file<'a>(user: Option<&User<'_>>) -> File<'a> {
         content: vec![0xFF, 0xD8, 0xFF],
     };
 
-    insert_file(&user, &input).await.expect("Could not insert folder")
+    insert_file(user, &input).await.expect("Could not insert folder")
 }
 
 pub async fn insert_test_files<'a>(count: u8, user: Option<&User<'_>>) -> Vec<File<'a>> {
     let user = if let Some(user) = user {
         user
     } else {
-        &insert_test_user(None).await
+        &insert_test_user().await
     };
 
     let mut files = Vec::new();
@@ -134,7 +48,7 @@ pub async fn insert_test_folder<'a>(user: Option<&User<'_>>, parent_folder: Opti
     let user = if let Some(user) = user {
         user
     } else {
-        &insert_test_user(None).await
+        &insert_test_user().await
     };
     let parent_folder_id = parent_folder.map(|folder| folder.id);
 
@@ -155,7 +69,7 @@ pub async fn insert_test_folders<'a>(
     let user = if let Some(user) = user {
         user
     } else {
-        &insert_test_user(None).await
+        &insert_test_user().await
     };
     let mut folders = Vec::new();
 
@@ -166,21 +80,27 @@ pub async fn insert_test_folders<'a>(
     folders
 }
 
-pub async fn insert_test_user<'a>(password: Option<&str>) -> User<'a> {
-    let password = if let Some(password) = password {
-        password.to_owned()
-    } else {
-        fake_password()
-    };
+pub async fn insert_test_session<'a>() -> Session<'a> {
+    let user = insert_test_user().await;
+    let auth = fake_auth();
 
-    let input = RegisterInput {
-        username: fake_username(),
-        email: fake_email(),
-        password,
-        full_name: fake_name(),
+    insert_session(&user, &auth).await.expect("Could not insert session")
+}
+
+pub async fn insert_test_user<'a>() -> User<'a> {
+    let user_info = UserInfo {
+        id: Uuid::new_v4(),
+        username: Cow::Owned(fake_username()),
+        email: Cow::Owned(fake_email()),
+        display_name: Cow::Owned(fake_name()),
+        initials: Cow::Borrowed("AA"),
+        full_name: Cow::Owned(fake_name()),
         birthdate: fake_birthdate(),
-        country_alpha2: fake_country_alpha2(),
+        language_code: Cow::Borrowed("en"),
+        country_alpha2: Cow::Owned(fake_country_alpha2()),
+        created_at: Utc::now(),
+        updated_at: None,
     };
 
-    insert_user(&input).await.expect("Could not insert user")
+    insert_or_update_user(&user_info).await.expect("Could not insert user")
 }

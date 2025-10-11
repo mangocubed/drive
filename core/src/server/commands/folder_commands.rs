@@ -1,9 +1,10 @@
 use uuid::Uuid;
 use validator::{Validate, ValidationErrors};
 
+use sdk::constants::ERROR_ALREADY_EXISTS;
+
 use crate::enums::FileVisibility;
 use crate::inputs::RenameInput;
-use crate::server::constants::ERROR_ALREADY_EXISTS;
 use crate::server::db_pool;
 use crate::server::models::Folder;
 

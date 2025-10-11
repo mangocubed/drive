@@ -1,11 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { faker } from "@faker-js/faker/locale/en";
-import { loginAndGoToHome, waitForLoadingOverlay } from "./shared_expects";
+import { waitForSplash, testOptions } from "./shared_expects";
+
+test.use(testOptions());
 
 test("should be a link to storage page", async ({ page }) => {
-    await loginAndGoToHome(page);
+    await page.goto("/");
 
-    await waitForLoadingOverlay(page);
+    await waitForSplash(page);
 
     page.getByRole("link", { name: "Storage" }).click();
 
@@ -14,9 +15,9 @@ test("should be a link to storage page", async ({ page }) => {
 });
 
 test("should open modal to select a plan", async ({ page }) => {
-    await loginAndGoToHome(page);
+    await page.goto("/");
 
-    await waitForLoadingOverlay(page);
+    await waitForSplash(page);
 
     page.getByRole("link", { name: "Storage" }).click();
 

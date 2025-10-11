@@ -1,7 +1,8 @@
+use chrono::{DateTime, Utc};
 use dioxus::prelude::*;
 use uuid::Uuid;
 
-use crate::layouts::{GuestLayout, UserLayout};
+use crate::layouts::UserLayout;
 use crate::pages::*;
 
 #[derive(Clone, Routable)]
@@ -21,13 +22,8 @@ pub enum Routes {
         TrashPage {},
     #[end_layout]
 
-    #[layout(GuestLayout)]
-        #[route("/login")]
-        LoginPage {},
-        #[route("/register")]
-        RegisterPage {},
-    #[end_layout]
-
+    #[route("/authorized?:token&:expires_at")]
+    AuthorizedPage { token: String, expires_at: DateTime<Utc> },
     #[route("/confirm-checkout?:checkout_id")]
     ConfirmCheckoutPage { checkout_id: Uuid },
 }
@@ -51,13 +47,5 @@ impl Routes {
 
     pub fn trash() -> Self {
         Self::TrashPage {}
-    }
-
-    pub fn login() -> Self {
-        Self::LoginPage {}
-    }
-
-    pub fn register() -> Self {
-        Self::RegisterPage {}
     }
 }

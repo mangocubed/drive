@@ -2,44 +2,16 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use bytesize::ByteSize;
-use figment::Figment;
-use figment::providers::{Env, Serialized};
 use image::imageops::FilterType;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-pub fn extract_from_env<'a, T>(prefix: &str) -> T
-where
-    T: Deserialize<'a> + Serialize + Default,
-{
-    Figment::from(Serialized::defaults(T::default()))
-        .merge(Env::prefixed(prefix))
-        .extract()
-        .unwrap()
-}
+use sdk::config::extract_config_from_env;
 
-pub static APP_CONFIG: LazyLock<AppConfig> = LazyLock::new(|| extract_from_env("APP_"));
-pub(crate) static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_from_env("DATABASE_"));
-pub(crate) static POLAR_CONFIG: LazyLock<PolarConfig> = LazyLock::new(|| extract_from_env("POLAR_"));
-pub(crate) static STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| extract_from_env("STORAGE_"));
-pub(crate) static USERS_CONFIG: LazyLock<UsersConfig> = LazyLock::new(|| extract_from_env("USERS_"));
-
-#[derive(Deserialize, Serialize)]
-pub struct AppConfig {
-    pub server_url: Url,
-    pub token: String,
-    pub old_tokens: Vec<String>,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            server_url: Url::parse("http://127.0.0.1:8080").unwrap(),
-            token: "00000000".to_owned(),
-            old_tokens: Vec::new(),
-        }
-    }
-}
+pub(crate) static DATABASE_CONFIG: LazyLock<DatabaseConfig> = LazyLock::new(|| extract_config_from_env("DATABASE_"));
+pub(crate) static POLAR_CONFIG: LazyLock<PolarConfig> = LazyLock::new(|| extract_config_from_env("POLAR_"));
+pub(crate) static STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| extract_config_from_env("STORAGE_"));
+pub(crate) static USERS_CONFIG: LazyLock<UsersConfig> = LazyLock::new(|| extract_config_from_env("USERS_"));
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct DatabaseConfig {
@@ -115,17 +87,15 @@ impl StorageConfig {
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct UsersConfig {
-    pub access_token_length: u8,
+    pub session_token_length: u8,
     pub free_quota_gib: u8,
-    pub limit: u8,
 }
 
 impl Default for UsersConfig {
     fn default() -> Self {
         Self {
-            access_token_length: 32,
+            session_token_length: 32,
             free_quota_gib: 5,
-            limit: 10,
         }
     }
 }

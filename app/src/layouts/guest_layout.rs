@@ -1,15 +1,15 @@
 use dioxus::prelude::*;
 
 use sdk::components::{Brand, Footer, Navbar, NavbarStart};
+use sdk::hooks::use_resource_with_loader;
 
 use crate::constants::{COPYRIGHT, PRIVACY_URL, SOURCE_CODE_URL, TERMS_URL};
 use crate::routes::Routes;
 use crate::server_fns::is_logged_in;
-use crate::use_resource_with_loader;
 
 #[component]
 pub fn GuestLayout() -> Element {
-    let is_logged_in = use_resource_with_loader("logged-in".to_owned(), is_logged_in);
+    let is_logged_in = use_resource_with_loader("logged-in", is_logged_in);
     let navigator = use_navigator();
 
     use_effect(move || {
@@ -22,7 +22,7 @@ pub fn GuestLayout() -> Element {
         div { class: "flex flex-col min-h-screen",
             Navbar {
                 NavbarStart {
-                    Link { class: "flex gap-2 items-center", to: Routes::login(),
+                    Link { to: Routes::login(),
                         Brand { "Drive" }
                     }
                 }

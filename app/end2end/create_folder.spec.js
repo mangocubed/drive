@@ -1,11 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { faker } from "@faker-js/faker/locale/en";
-import { loginAndGoToHome, waitForLoadingOverlay } from "./shared_expects";
+import { testOptions, waitForSplash } from "./shared_expects";
+
+test.use(testOptions());
 
 test("should create a folder", async ({ page }) => {
     const folderName = faker.person.fullName();
 
-    await loginAndGoToHome(page);
+    await page.goto("/");
+
+    await waitForSplash(page);
 
     await page.getByRole("button", { name: "New folder" }).click();
 
@@ -22,7 +26,9 @@ test("should create a folder", async ({ page }) => {
 });
 
 test("should fail to create a folder", async ({ page }) => {
-    await loginAndGoToHome(page);
+    await page.goto("/");
+
+    await waitForSplash(page);
 
     await page.getByRole("button", { name: "New folder" }).click();
 
