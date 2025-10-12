@@ -44,10 +44,9 @@ export default defineConfig({
 
     webServer: {
         cwd: "..",
-        command: `npm run build && cargo build --bin drive-cli --release && \
-            dx build --package drive-app --release --web && \
-            dx serve --package drive-app --release --web`,
-        port: 8080,
+        command: `npm run build && cargo build --package drive-cli --features test-utils && \
+            dx build --package drive-app --web && dx serve --package drive-app --web --port 8090`,
+        port: 8090,
         timeout: 3600000,
         reuseExistingServer: !process.env.CI,
         stdout: "pipe",

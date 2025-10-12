@@ -8,19 +8,16 @@ repository.workspace = true
 
 [build-dependencies]
 chrono = { workspace = true }
+sdk = { workspace = true, features = ["build"] }
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
 axum = { version = "0.8.6", optional = true }
-axum-extra = { version = "0.10.3", features = [
-    "typed-header",
-], optional = true }
 bytesize = { workspace = true, optional = true }
+chrono = { workspace = true }
 dioxus = { version = "0.7.0-rc.0", features = ["router", "fullstack"] }
-directories = { version = "6.0.0", optional = true }
 futures = { workspace = true }
 headers = { version = "0.4.1", optional = true }
-jni = { version = "0.21.1", default-features = false, optional = true }
 reqwest = { version = "0.12.23", default-features = false, optional = true }
 rust_iso3166 = { workspace = true }
 serde = { workspace = true }
@@ -35,20 +32,20 @@ web-sys = { version = "0.3.81", features = [
     "Storage",
 ], optional = true }
 drive-core = { workspace = true }
-sdk = { git = "https://github.com/mangocubed/sdk.git", tag = "v0.0.0-alpha.2" }
+sdk = { workspace = true, features = ["dioxus-fullstack"] }
 
 [features]
 default = ["web"]
-web = ["dep:web-sys", "dioxus/web"]
-desktop = ["dep:directories", "dep:reqwest", "dioxus/desktop"]
-mobile = ["dep:jni", "dep:reqwest", "dioxus/mobile"]
+web = ["dep:web-sys", "dioxus/web", "sdk/dioxus-web"]
+desktop = ["dep:reqwest", "dioxus/desktop", "sdk/dioxus-desktop"]
+mobile = ["dep:reqwest", "dioxus/mobile", "sdk/dioxus-mobile"]
 server = [
     "dep:anyhow",
     "dep:axum",
-    "dep:axum-extra",
     "dep:bytesize",
     "dep:headers",
     "dep:tokio",
     "dioxus/server",
     "drive-core/server",
+    "sdk/dioxus-server",
 ]

@@ -25,10 +25,12 @@ jobs:
             - uses: ./.github/actions/setup-dioxus
             - name: Check with cargo-clippy
               run: |
-                  cargo clippy --package drive-core -- -D warnings
+                  cargo clippy --package drive-core --all-features -- -D warnings || failed
                   cargo clippy --package drive-app -- -D warnings
-                  cargo clippy --package drive-app --no-default-features --features desktop -- -D warnings
-                  cargo clippy --package drive-cli -- -D warnings
+                  cargo clippy --package drive-app --no-default-features --features desktop -- -D warnings || failed
+                  cargo clippy --package drive-app --no-default-features --features mobile -- -D warnings || failed
+                  cargo clippy --package drive-app --no-default-features --features server -- -D warnings || failed
+                  cargo clippy --package drive-cli --all-features -- -D warnings || failed
             - name: Check with cargo-fmt
               run: cargo fmt --all --check
             - name: Check with dioxus-cli

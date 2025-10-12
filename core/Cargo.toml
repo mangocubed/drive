@@ -5,10 +5,8 @@ edition.workspace = true
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
-argon2 = { version = "0.5.3", optional = true }
 bytesize = { workspace = true, optional = true }
 chrono = { workspace = true }
-figment = { version = "0.10.19", features = ["env", "toml"], optional = true }
 file-format = { version = "0.28.0", optional = true }
 futures = { workspace = true }
 image = { version = "0.25.8", features = ["serde"], optional = true }
@@ -30,17 +28,12 @@ url = { workspace = true, optional = true }
 uucore = { version = "0.2.2", features = ["fsext"], optional = true }
 uuid = { workspace = true }
 validator = { workspace = true }
-
-[dev-dependencies]
-fake = { version = "4.4.0", features = ["chrono"] }
-rand = "0.9.2"
+sdk = { workspace = true }
 
 [features]
 server = [
     "dep:anyhow",
-    "dep:argon2",
     "dep:bytesize",
-    "dep:figment",
     "dep:file-format",
     "dep:image",
     "dep:md-5",
@@ -53,4 +46,6 @@ server = [
     "dep:url",
     "dep:uucore",
     "validator/derive",
+    "sdk/server",
 ]
+test-utils = ["sdk/test-utils"]

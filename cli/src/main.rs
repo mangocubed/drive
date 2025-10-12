@@ -1,32 +1,29 @@
 use clap::{Arg, Command, value_parser};
 
-const ARG_BIRTHDATE: &str = "birthdate";
-const ARG_COUNTRY: &str = "country";
+use drive_core::server::commands::*;
+
+#[cfg(feature = "test-utils")]
+use drive_core::test_utils::insert_test_session;
+
+use serde_json::to_string_pretty;
+use uuid::Uuid;
+
 const ARG_DESCRIPTION: &str = "description";
-const ARG_EMAIL: &str = "email";
-const ARG_FULL_NAME: &str = "full-name";
 const ARG_MONTHLY_PRICE_CENTS: &str = "monthly-price-cents";
 const ARG_NAME: &str = "name";
-const ARG_PASSWORD: &str = "password";
 const ARG_PLAN_ID: &str = "plan-id";
 const ARG_QUOTA_GIB: &str = "quota-gib";
 const ARG_USERNAME: &str = "username";
 const ARG_YEARLY_PRICE_CENTS: &str = "yearly-price-cents";
 
 const COMMAND_CREATE_PLAN: &str = "create-plan";
-const COMMAND_CREATE_USER: &str = "create-user";
 const COMMAND_DISABLE_USER: &str = "disable-user";
 const COMMAND_ENABLE_USER: &str = "enable-user";
 const COMMAND_LIST_PLANS: &str = "list-plans";
 const COMMAND_SET_USER_PLAN: &str = "set-user-plan";
 
-use drive_core::inputs::RegisterInput;
-use drive_core::server::commands::{
-    disable_user, enable_user, get_all_plans, get_plan_by_id, get_user_by_username, insert_plan, insert_user,
-    update_user_plan,
-};
-use serde_json::to_string_pretty;
-use uuid::Uuid;
+#[cfg(feature = "test-utils")]
+const COMMAND_CREATE_TEST_SESSION: &str = "create-test-session";
 
 #[tokio::main]
 async fn main() {
@@ -35,7 +32,7 @@ async fn main() {
         .long("username")
         .value_parser(value_parser!(String));
     let version = env!("CARGO_PKG_VERSION");
-    let matches = Command::new("Mango³ CLI")
+    let command = Command::new("Mango³ CLI")
         .version(version)
         .subcommand(
             Command::new(COMMAND_CREATE_PLAN)
@@ -72,41 +69,6 @@ async fn main() {
                 ),
         )
         .subcommand(
-            Command::new(COMMAND_CREATE_USER)
-                .version(version)
-                .arg(arg_username.clone())
-                .arg(
-                    Arg::new(ARG_EMAIL)
-                        .short('e')
-                        .long("email")
-                        .value_parser(value_parser!(String)),
-                )
-                .arg(
-                    Arg::new(ARG_PASSWORD)
-                        .short('p')
-                        .long("password")
-                        .value_parser(value_parser!(String)),
-                )
-                .arg(
-                    Arg::new(ARG_FULL_NAME)
-                        .short('n')
-                        .long("full-name")
-                        .value_parser(value_parser!(String)),
-                )
-                .arg(
-                    Arg::new(ARG_BIRTHDATE)
-                        .short('b')
-                        .long("birthdate")
-                        .value_parser(value_parser!(String)),
-                )
-                .arg(
-                    Arg::new(ARG_COUNTRY)
-                        .short('c')
-                        .long("country")
-                        .value_parser(value_parser!(String)),
-                ),
-        )
-        .subcommand(
             Command::new(COMMAND_DISABLE_USER)
                 .version(version)
                 .arg(arg_username.clone()),
@@ -127,8 +89,12 @@ async fn main() {
                         .long(ARG_PLAN_ID)
                         .value_parser(value_parser!(Uuid)),
                 ),
-        )
-        .get_matches();
+        );
+
+    #[cfg(feature = "test-utils")]
+    let command = command.subcommand(Command::new(COMMAND_CREATE_TEST_SESSION).version(version));
+
+    let matches = command.get_matches();
 
     match matches.subcommand() {
         Some((COMMAND_CREATE_PLAN, matches)) => {
@@ -158,47 +124,6 @@ async fn main() {
             match result {
                 Ok(_) => println!("Plan created successfully."),
                 Err(err) => println!("Failed to create plan.\n{err}"),
-            }
-        }
-        Some((COMMAND_CREATE_USER, matches)) => {
-            let username = matches
-                .get_one::<String>(ARG_USERNAME)
-                .cloned()
-                .expect("Could not get argument username");
-            let email = matches
-                .get_one::<String>(ARG_EMAIL)
-                .cloned()
-                .expect("Could not get argument email");
-            let password = matches
-                .get_one::<String>(ARG_PASSWORD)
-                .cloned()
-                .expect("Could not get argument password");
-            let full_name = matches
-                .get_one::<String>(ARG_FULL_NAME)
-                .cloned()
-                .expect("Could not get argument full-name");
-            let birthdate = matches
-                .get_one::<String>(ARG_BIRTHDATE)
-                .cloned()
-                .expect("Could not get argument birthdate");
-            let country_alpha2 = matches
-                .get_one::<String>(ARG_COUNTRY)
-                .cloned()
-                .expect("Could not get argument country");
-
-            let result = insert_user(&RegisterInput {
-                username,
-                email,
-                password,
-                full_name,
-                birthdate,
-                country_alpha2,
-            })
-            .await;
-
-            match result {
-                Ok(_) => println!("User created successfully."),
-                Err(err) => println!("Failed to create user.\n{err}"),
             }
         }
         Some((COMMAND_DISABLE_USER, matches)) => {
@@ -250,6 +175,12 @@ async fn main() {
                 Ok(_) => println!("User plan updated successfully."),
                 _ => println!("Failed to update user plan."),
             }
+        }
+        #[cfg(feature = "test-utils")]
+        Some((COMMAND_CREATE_TEST_SESSION, _)) => {
+            let session = insert_test_session().await;
+
+            println!("{}", to_string_pretty(&session).expect("Failed to serialize session"));
         }
         _ => println!("Nothing to do."),
     }
